@@ -1,66 +1,167 @@
-# YouTube Farsi Translator Chrome Extension
+# 🎬 YouTube Farsi Translator
 
-A Chrome extension that translates YouTube English subtitles to Farsi in real-time using OpenRouter.ai.
+<div align="center">
 
-## Features
+![Version](https://img.shields.io/badge/version-1.5-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-yellow.svg)
+![Persian](https://img.shields.io/badge/language-Persian-red.svg)
 
-- Automatically translates English subtitles to Farsi
-- Displays both original English and translated Farsi subtitles simultaneously
-- Works with most YouTube videos that have English captions
-- Uses OpenRouter.ai for high-quality translations
-- Simple toggle button in the YouTube player controls
+**یک افزونه کروم قدرتمند برای ترجمه زیرنویس‌های انگلیسی یوتیوب به فارسی**
 
-## Installation
+[📥 دانلود](#نصب) • [🚀 ویژگی‌ها](#ویژگی‌ها) • [⚙️ تنظیمات](#تنظیمات) • [🤝 مشارکت](#مشارکت)
 
-### Manual Installation (Developer Mode)
+</div>
 
-1. Download or clone this repository to your local machine
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable "Developer mode" by toggling the switch in the top right corner
-4. Click "Load unpacked" and select the directory containing the extension files
-5. The extension should now be installed and visible in your Chrome extensions list
+---
 
-## Usage
+## 📖 درباره پروژه
 
-1. After installation, navigate to a YouTube video with English subtitles
-2. Make sure subtitles are enabled in the YouTube player
-3. Click the "فارسی" button in the YouTube player controls to activate the Farsi translation
-4. Enter your OpenRouter.ai API key in the popup when prompted (you only need to do this once)
-5. The translated Farsi subtitles will appear below the original English subtitles
+YouTube Farsi Translator یک افزونه کروم پیشرفته است که به شما امکان ترجمه آنی زیرنویس‌های انگلیسی ویدیوهای یوتیوب به فارسی را می‌دهد. این افزونه با استفاده از هوش مصنوعی‌های پیشرفته مانند OpenRouter و Gemini، ترجمه‌های با کیفیت و طبیعی ارائه می‌دهد.
 
-## Getting an OpenRouter.ai API Key
+## ✨ ویژگی‌ها
 
-1. Go to [OpenRouter.ai](https://openrouter.ai/) and create an account
-2. Navigate to your account settings or API section
-3. Generate a new API key
-4. Copy this key and paste it into the extension popup when prompted
+### 🔥 ویژگی‌های اصلی
+- **ترجمه آنی**: ترجمه خودکار زیرنویس‌های انگلیسی به فارسی
+- **نمایش همزمان**: نمایش زیرنویس انگلیسی و فارسی به صورت همزمان
+- **پشتیبانی از چند API**: OpenRouter و Gemini API
+- **ترجمه تکه‌ای**: تقسیم ویدیوهای طولانی برای ترجمه بهتر
+- **ذخیره خودکار**: ذخیره ترجمه‌ها برای استفاده مجدد
 
-## How It Works
+### 🎯 ویژگی‌های پیشرفته
+- **پراگرس بار**: نمایش پیشرفت ترجمه به صورت زنده
+- **پرامپت سفارشی**: امکان ویرایش پرامپت ترجمه
+- **مدیریت ذخیره‌سازی**: مشاهده و مدیریت ترجمه‌های ذخیره شده
+- **رابط کاربری فارسی**: طراحی کاملاً فارسی با فونت وزیر
 
-1. The extension detects when you're watching a YouTube video
-2. When activated, it extracts the English subtitles from the video
-3. The subtitles are sent to OpenRouter.ai for translation to Farsi
-4. The translated subtitles are displayed in sync with the video
+### 🛠️ ویژگی‌های فنی
+- **بهینه‌سازی عملکرد**: ترجمه سریع و کارآمد
+- **مدیریت خطا**: مدیریت هوشمند خطاها و بازیابی
+- **رابط کاربری مدرن**: طراحی زیبا و کاربرپسند
+- **سازگاری بالا**: کار با انواع ویدیوهای یوتیوب
 
-## Notes
+## 🚀 نصب
 
-- This extension requires an internet connection to function
-- Translation quality depends on the OpenRouter.ai service
-- The extension works best with clearly spoken English content
-- You need to enable subtitles on YouTube for the extension to work
+### نصب دستی (حالت توسعه‌دهنده)
 
-## Privacy
+1. **دانلود پروژه**
+   ```bash
+   git clone https://github.com/mortezadalil/Youtube-Ai-Translator.git
+   cd Youtube-Ai-Translator
+   ```
 
-- Your subtitles data is sent to OpenRouter.ai for translation
-- Your API key is stored locally in your browser
-- No other personal data is collected or transmitted
+2. **فعال‌سازی حالت توسعه‌دهنده**
+   - کروم را باز کنید
+   - به `chrome://extensions/` بروید
+   - "Developer mode" را فعال کنید
 
-## Known Issues and Limitations
+3. **بارگذاری افزونه**
+   - روی "Load unpacked" کلیک کنید
+   - پوشه پروژه را انتخاب کنید
+   - افزونه نصب خواهد شد
 
-- May not work with auto-generated captions in some cases
-- Translations might have slight delays for very long videos
-- The extension needs to be reactivated when switching between videos
+## ⚙️ تنظیمات
 
-## Contributing
+### 🔑 تنظیم کلید API
 
-Feel free to submit pull requests or report issues on GitHub.
+#### OpenRouter API
+1. به [OpenRouter.ai](https://openrouter.ai/keys) بروید
+2. حساب کاربری ایجاد کنید
+3. کلید API دریافت کنید
+4. در تنظیمات افزونه وارد کنید
+
+#### Gemini API
+1. به [Google AI Studio](https://aistudio.google.com/app/apikey) بروید
+2. کلید API دریافت کنید
+3. در تنظیمات افزونه وارد کنید
+
+### 🎛️ تنظیمات پیشرفته
+
+- **انتخاب مدل**: انتخاب مدل هوش مصنوعی مورد نظر
+- **مدت زمان تکه**: تنظیم طول هر بخش برای ترجمه (1-30 دقیقه)
+- **بازه زمانی**: انتخاب بخش خاصی از ویدیو
+- **پرامپت سفارشی**: ویرایش دستورات ترجمه
+
+## 📱 نحوه استفاده
+
+1. **باز کردن ویدیو**: ویدیوی یوتیوب مورد نظر را باز کنید
+2. **فعال‌سازی افزونه**: روی آیکن افزونه در پلیر کلیک کنید
+3. **تنظیم API**: کلید API خود را وارد کنید
+4. **شروع ترجمه**: روی "دریافت ترجمه" کلیک کنید
+5. **لذت ببرید**: از تماشای ویدیو با زیرنویس فارسی لذت ببرید
+
+## 🎨 تصاویر
+
+<div align="center">
+
+### رابط کاربری اصلی
+![Main Interface](https://via.placeholder.com/600x300/1a1a1a/ffffff?text=YouTube+Farsi+Translator)
+
+### پنل تنظیمات
+![Settings Panel](https://via.placeholder.com/400x500/2a2a2a/ffffff?text=Settings+Panel)
+
+### نمایش زیرنویس
+![Subtitle Display](https://via.placeholder.com/600x200/333333/ffffff?text=Subtitle+Display)
+
+</div>
+
+## 🔧 مدل‌های پشتیبانی شده
+
+### OpenRouter Models
+- `meta-llama/llama-3.1-8b-instruct:free` (رایگان)
+- `meta-llama/llama-3.1-70b-instruct`
+- `anthropic/claude-3-haiku`
+- `google/gemini-pro`
+
+### Gemini Models
+- `gemini-2.0-flash`
+- `gemini-1.5-pro`
+
+## 📊 آمار پروژه
+
+- **خطوط کد**: 6000+ خط
+- **ویژگی‌ها**: 20+ ویژگی
+- **زبان‌ها**: JavaScript, CSS, HTML
+- **سازگاری**: Chrome 88+
+
+## 🤝 مشارکت
+
+ما از مشارکت شما استقبال می‌کنیم! برای مشارکت:
+
+1. پروژه را Fork کنید
+2. شاخه جدید ایجاد کنید (`git checkout -b feature/AmazingFeature`)
+3. تغییرات را Commit کنید (`git commit -m 'Add some AmazingFeature'`)
+4. به شاخه Push کنید (`git push origin feature/AmazingFeature`)
+5. Pull Request ایجاد کنید
+
+## 🐛 گزارش باگ
+
+برای گزارش باگ‌ها، پیشنهادات و انتقادات:
+
+📧 **ایمیل**: mortezadalil@gmail.com
+
+لطفاً موارد زیر را در گزارش خود ذکر کنید:
+- نسخه مرورگر
+- نسخه افزونه
+- توضیح کامل مشکل
+- مراحل بازتولید باگ
+
+## 📄 مجوز
+
+این پروژه تحت مجوز MIT منتشر شده است. برای اطلاعات بیشتر فایل [LICENSE](LICENSE) را مطالعه کنید.
+
+## 🙏 تشکر
+
+- از تیم [OpenRouter](https://openrouter.ai) برای ارائه API قدرتمند
+- از [Google](https://ai.google.dev) برای Gemini API
+- از جامعه متن‌باز برای ابزارها و کتابخانه‌های استفاده شده
+
+---
+
+<div align="center">
+
+**ساخته شده با ❤️ برای جامعه فارسی‌زبان**
+
+[⭐ ستاره بدهید](https://github.com/mortezadalil/Youtube-Ai-Translator) • [🐛 باگ گزارش کنید](mailto:mortezadalil@gmail.com) • [💡 پیشنهاد دهید](mailto:mortezadalil@gmail.com)
+
+</div>

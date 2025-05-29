@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Farsi Translator",
-  "version": "1.0",
+  "version": "1.5",
   "description": "Translates YouTube English subtitles to Farsi using OpenRouter.ai",
   "permissions": ["storage", "tabs", "scripting"],
   "host_permissions": [

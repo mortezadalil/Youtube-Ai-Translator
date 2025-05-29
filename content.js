@@ -751,7 +751,7 @@ function createStyles() {
     
     .subtitle-text {
       display: inline-block;
-      background-color: rgba(0, 0, 0, 0.8);
+      background-color: rgba(0, 0, 0, 0.9);
       color: white;
       padding: 10px 20px;
       border-radius: 4px;
@@ -5961,14 +5961,30 @@ function getTranslationApiInfo() {
 
 // Load original language display setting
 function loadOriginalLanguageSetting() {
-  const saved = localStorage.getItem('showOriginalLanguage');
-  if (saved !== null) {
-    showOriginalLanguage = saved === 'true';
-  } else {
-    // If no value is saved, keep the default value (false)
+  try {
+    const saved = localStorage.getItem('showOriginalLanguage');
+    console.log('[LOAD_ORIGINAL] Saved value from localStorage:', saved);
+    
+    if (saved !== null) {
+      showOriginalLanguage = saved === 'true';
+    } else {
+      // If no value is saved, keep the default value (false)
+      showOriginalLanguage = false;
+    }
+    
+    console.log('[LOAD_ORIGINAL] Final showOriginalLanguage value:', showOriginalLanguage);
+    return showOriginalLanguage;
+  } catch (error) {
+    console.error('[LOAD_ORIGINAL] Error loading original language setting:', error);
+    // If there's an error, clear the problematic value and use default
+    try {
+      localStorage.removeItem('showOriginalLanguage');
+    } catch (clearError) {
+      console.error('[LOAD_ORIGINAL] Error clearing localStorage:', clearError);
+    }
     showOriginalLanguage = false;
+    return false;
   }
-  return showOriginalLanguage;
 }
 
 // Save original language display setting
@@ -6525,6 +6541,9 @@ function createPromptPanel() {
     resize: vertical;
     direction: ltr;
     text-align: left;
+    box-sizing: border-box;
+    margin: 0;
+    outline: none;
   `;
 
   const buttonContainer = document.createElement('div');
