@@ -63,4 +63,4 @@ A Chrome extension that translates YouTube English subtitles to Farsi in real-ti
 
 ## Contributing
 
-Feel free to submit pull requests or report issues on GitHub. 
+Feel free to submit pull requests or report issues on GitHub.
