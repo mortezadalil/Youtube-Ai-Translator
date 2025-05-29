@@ -1057,6 +1057,89 @@ function createStyles() {
       text-align: center;
     }
     
+    /* Original subtitle position controls */
+    .original-position-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+      padding: 8px;
+      background-color: rgba(0, 0, 0, 0.6);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+    }
+    
+    .original-position-label {
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+      direction: rtl;
+      text-align: right;
+      min-width: 100px;
+    }
+    
+    .original-position-buttons {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .original-position-button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      width: 24px;
+      height: 24px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s ease;
+    }
+    
+    .original-position-button:hover {
+      background-color: #45a049;
+    }
+    
+    .original-position-value {
+      color: white;
+      font-size: 11px;
+      font-weight: bold;
+      min-width: 35px;
+      text-align: center;
+      background-color: rgba(255, 255, 255, 0.1);
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Original subtitle overlay */
+    .original-subtitle-overlay {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2147483646;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-family: 'Arial', 'Helvetica', sans-serif;
+      font-size: 14px;
+      line-height: 1.4;
+      text-align: center;
+      max-width: 80%;
+      word-wrap: break-word;
+      direction: ltr;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: none;
+    }
+    
     
     
     
@@ -1797,6 +1880,10 @@ async function translateSubtitlesWithOpenRouter() {
     console.log('[TRANSLATE] Converting filtered subtitles to XML format');
     const xml = convertSubtitlesToXml(filteredSubtitles);
     originalSubtitleXml = xml;
+    
+    // Store original subtitles for display
+    originalSubtitles = filteredSubtitles;
+    console.log(`[TRANSLATE] Stored ${originalSubtitles.length} original subtitles for display`);
     
     // Log the original XML for debugging
     console.log('[TRANSLATE] Original XML with timing data:');
@@ -5507,6 +5594,9 @@ function removeExistingOverlay() {
     existingOverlay.remove();
     console.log('[OVERLAY] Existing overlay removed');
   }
+  
+  // Also remove original subtitle overlay
+  removeOriginalSubtitleOverlay();
 }
 
 function startSubtitleUpdates() {
