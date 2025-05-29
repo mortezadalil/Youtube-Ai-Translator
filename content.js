@@ -14,7 +14,7 @@ let subtitleTimeMultiplier = 1.0; // Time multiplier for subtitle synchronizatio
 let subtitleVerticalPosition = 80; // Vertical position in pixels from bottom (default: 80px)
 let isSettingsBoxCollapsed = false; // Track if settings box is collapsed - default to expanded
 let isTranslationInProgress = false; // Track if translation is currently in progress
-let showOriginalLanguage = true; // Flag to track original language display state
+let showOriginalLanguage = false; // Flag to track original language display state
 let originalSubtitles = []; // Store the original subtitles
 let originalSubtitleVerticalPosition = 100; // Vertical position for original subtitles
 
@@ -1070,7 +1070,35 @@ function createStyles() {
       font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
     }
     
-    .original-position-label {
+    /* Subtitle position controls - same style as original position controls */
+    .subtitle-position-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+      padding: 8px;
+      background-color: rgba(0, 0, 0, 0.6);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+    }
+    
+    /* Original language controls - same style as position controls */
+    .original-language-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+      padding: 8px;
+      background-color: rgba(0, 0, 0, 0.6);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+    }
+    
+    .original-position-label,
+    .subtitle-position-label,
+    .original-language-label {
       color: white;
       font-size: 12px;
       font-weight: bold;
@@ -1079,13 +1107,15 @@ function createStyles() {
       min-width: 100px;
     }
     
-    .original-position-buttons {
+    .original-position-buttons,
+    .subtitle-position-buttons {
       display: flex;
       align-items: center;
       gap: 4px;
     }
     
-    .original-position-button {
+    .original-position-button,
+    .subtitle-position-button {
       background-color: #4CAF50;
       color: white;
       border: none;
@@ -1101,11 +1131,13 @@ function createStyles() {
       transition: background-color 0.2s ease;
     }
     
-    .original-position-button:hover {
+    .original-position-button:hover,
+    .subtitle-position-button:hover {
       background-color: #45a049;
     }
     
-    .original-position-value {
+    .original-position-value,
+    .subtitle-position-value {
       color: white;
       font-size: 11px;
       font-weight: bold;
@@ -1117,7 +1149,19 @@ function createStyles() {
       border: 1px solid rgba(255, 255, 255, 0.2);
     }
     
-    /* Original subtitle overlay */
+    /* Original language checkbox styling */
+    .original-language-checkbox {
+      width: 18px;
+      height: 18px;
+      accent-color: #4CAF50;
+      cursor: pointer;
+      margin: 0;
+    }
+    
+    .original-language-checkbox:checked {
+      background-color: #4CAF50;
+    }
+    
     .original-subtitle-overlay {
       position: absolute;
       top: 20px;
@@ -1309,6 +1353,21 @@ function createSettingsBox() {
   gearButton.title = 'تنظیمات کلید API';
   gearButton.addEventListener('click', showApiKeyPanel);
   
+  // Add prompt editing button next to gear button
+  const promptButton = document.createElement('button');
+  promptButton.className = 'subtitle-settings-gear';
+  promptButton.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+      <polyline points="14,2 14,8 20,8"></polyline>
+      <line x1="16" y1="13" x2="8" y2="13"></line>
+      <line x1="16" y1="17" x2="8" y2="17"></line>
+      <polyline points="10,9 9,9 8,9"></polyline>
+    </svg>
+  `;
+  promptButton.title = 'ویرایش پرامپت ترجمه';
+  promptButton.addEventListener('click', showPromptPanel);
+  
   // Create toggle button
   const toggleButton = document.createElement('button');
   toggleButton.className = 'subtitle-settings-toggle';
@@ -1318,6 +1377,7 @@ function createSettingsBox() {
   
   // Add buttons to controls
   controls.appendChild(gearButton);
+  controls.appendChild(promptButton);
   controls.appendChild(toggleButton);
   
   // Add elements to header
@@ -1434,7 +1494,7 @@ function addTranslateButton() {
     const newSettingsContent = createSettingsBox();
     if (!newSettingsContent) {
       console.error('Failed to create settings content');
-      return;
+    return;
     }
     // Now we have the settings content
   }
@@ -1446,12 +1506,22 @@ function addTranslateButton() {
     return;
   }
 
-  // Clear any existing buttons
-  contentElement.innerHTML = '';
+  // Find or create button container
+  let buttonContainer = contentElement.querySelector('.subtitle-button-container');
+  if (!buttonContainer) {
+    buttonContainer = document.createElement('div');
+    buttonContainer.className = 'subtitle-button-container';
+    contentElement.appendChild(buttonContainer);
+  }
 
-  // Always add persistent progress bar first
-  createPersistentProgressBar();
-  updatePersistentProgress();
+  // Clear only the button container, not the entire content
+  buttonContainer.innerHTML = '';
+
+  // Always add persistent progress bar first (if not already exists)
+  if (!document.querySelector('.persistent-progress-bar-container')) {
+    createPersistentProgressBar();
+    updatePersistentProgress();
+  }
   
   // Add time range controls (hidden for now)
   // addTimeRangeControls();
@@ -1506,7 +1576,7 @@ function addTranslateButton() {
       hideButton.textContent = 'مخفی کردن زیرنویس';
       hideButton.className = 'subtitle-visibility-button bright-green';
       hideButton.addEventListener('click', toggleSubtitleVisibility);
-      contentElement.appendChild(hideButton);
+      buttonContainer.appendChild(hideButton);
       
       // Add sync controls when subtitles are active and visible
       addSyncControls();
@@ -1525,7 +1595,7 @@ function addTranslateButton() {
           toggleSubtitleDisplay(true);
         }
       });
-      contentElement.appendChild(showButton);
+      buttonContainer.appendChild(showButton);
     }
     
     // Add refresh button only if translation is incomplete
@@ -1560,7 +1630,7 @@ function addTranslateButton() {
         refreshButton.style.cursor = 'not-allowed';
       }
       
-      contentElement.appendChild(refreshButton);
+      buttonContainer.appendChild(refreshButton);
     } else {
       console.log('BUTTON CHOICE: Not adding refresh button - translation is complete');
     }
@@ -1588,7 +1658,7 @@ function addTranslateButton() {
     clearButton.addEventListener('mouseleave', () => {
       clearButton.style.backgroundColor = '#2196F3';
     });
-    contentElement.appendChild(clearButton);
+    buttonContainer.appendChild(clearButton);
   } else {
     console.log('BUTTON CHOICE: No cached subtitles, showing translate button');
     
@@ -1609,7 +1679,7 @@ function addTranslateButton() {
     translateButton.className = 'subtitle-translate-button orange';
     }
     translateButton.addEventListener('click', translateSubtitlesWithOpenRouter);
-    contentElement.appendChild(translateButton);
+    buttonContainer.appendChild(translateButton);
     
     // Add clear progress button if there's incomplete translation AND saved subtitles
     if (hasIncomplete && hasSavedSubtitles) {
@@ -1626,21 +1696,21 @@ function addTranslateButton() {
           showNotification('پیشرفت ترجمه پاک شد - می‌توانید از ابتدا شروع کنید');
         }
       });
-      contentElement.appendChild(clearProgressButton);
+      buttonContainer.appendChild(clearProgressButton);
     }
   }
   
   // Add subtitle position controls at the end (always visible)
   const positionControls = createSubtitlePositionControls();
-  contentElement.appendChild(positionControls);
+  buttonContainer.appendChild(positionControls);
   
   // Add original language controls (always visible)
   const originalLanguageControls = createOriginalLanguageControls();
-  contentElement.appendChild(originalLanguageControls);
+  buttonContainer.appendChild(originalLanguageControls);
   
   // Add original language position controls (always visible)
   const originalPositionControls = createOriginalPositionControls();
-  contentElement.appendChild(originalPositionControls);
+  buttonContainer.appendChild(originalPositionControls);
   
   console.log('--- END addTranslateButton ---');
 }
@@ -1698,6 +1768,16 @@ function toggleSubtitleDisplay(show) {
     removeExistingOverlay();
     createSubtitleOverlay();
     
+    // Recreate original subtitle overlay if it was enabled
+    if (showOriginalLanguage) {
+      console.log('[SUBTITLE DISPLAY] Recreating original subtitle overlay');
+      const overlay = createOriginalSubtitleOverlay();
+      if (overlay) {
+        overlay.style.display = 'block';
+        updateOriginalSubtitleContent();
+      }
+    }
+    
     // Start updating subtitles based on video time
     startSubtitleUpdates();
     
@@ -1729,11 +1809,16 @@ function toggleSubtitleDisplay(show) {
         saveSubtitlesToStorage(currentVideoId, translatedSubtitles);
       }
       
-      // Rebuild the entire UI
-      removeSettingsBox();
-      const settingsContent = createSettingsBox();
+      // Only update the translate button content, don't rebuild the entire UI
+      const settingsContent = document.getElementById('subtitle-settings-content');
       if (settingsContent) {
-        setTimeout(() => addTranslateButton(), 300);
+        // Just refresh the button content
+        const buttonContainer = settingsContent.querySelector('.subtitle-button-container');
+        if (buttonContainer) {
+          // Remove existing buttons and recreate them
+          buttonContainer.innerHTML = '';
+          addTranslateButton();
+        }
       }
       console.log('[SUBTITLE DISPLAY] Updated buttons after toggling subtitle display to', show);
     }, 600);
@@ -1749,11 +1834,16 @@ function toggleSubtitleDisplay(show) {
     
     // Reset content
     setTimeout(() => {
-      // Rebuild the entire UI
-      removeSettingsBox();
-      const settingsContent = createSettingsBox();
+      // Only update the translate button content, don't rebuild the entire UI
+      const settingsContent = document.getElementById('subtitle-settings-content');
       if (settingsContent) {
-        setTimeout(() => addTranslateButton(), 300);
+        // Just refresh the button content
+        const buttonContainer = settingsContent.querySelector('.subtitle-button-container');
+        if (buttonContainer) {
+          // Remove existing buttons and recreate them
+          buttonContainer.innerHTML = '';
+    addTranslateButton();
+        }
       }
       console.log('[SUBTITLE DISPLAY] Updated buttons after toggling subtitle display to', show);
     }, 200);
@@ -5228,20 +5318,15 @@ async function translateWithOpenRouter(xml) {
       }
       
       // Prepare the prompt
-      const prompt = `Please translate the following English subtitle XML to Persian (Farsi). Keep the exact same XML structure and timing attributes. Only translate the text content inside the <text> tags. Make sure the translation is natural and contextually appropriate for video subtitles.${timeRangeInfo}
-
-${xml}
-
-Please return only the translated XML with the same structure.`;
+      const prompt = getTranslationPrompt() + `\n\nXML to translate:\n${xml}`;
       
-      console.log('[TRANSLATE] ==================== OPENROUTER REQUEST ====================');
-      console.log('[TRANSLATE] Model:', model);
+      console.log('[TRANSLATE] Using custom prompt');
       console.log('[TRANSLATE] API Key:', apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 5));
       console.log('[TRANSLATE] Prompt length:', prompt.length);
       console.log('[TRANSLATE] Complete prompt being sent:');
-      console.log('-----------------------------------------------------------');
+      console.log('--- START PROMPT ---');
       console.log(prompt);
-      console.log('-----------------------------------------------------------');
+      console.log('--- END PROMPT ---');
       
       // Make request to OpenRouter API
       const requestBody = {
@@ -5339,11 +5424,7 @@ function translateWithGemini(xml) {
       }
       
       // Prepare the prompt
-      const prompt = `Please translate the following English subtitle XML to Persian (Farsi). Keep the exact same XML structure and timing attributes. Only translate the text content inside the <text> tags. Make sure the translation is natural and contextually appropriate for video subtitles.${timeRangeInfo}
-
-${xml}
-
-Please return only the translated XML with the same structure.`;
+      const prompt = getTranslationPrompt() + `\n\nXML to translate:\n${xml}`;
       
       console.log('[TRANSLATE] ==================== GEMINI REQUEST ====================');
       console.log('[TRANSLATE] API Key:', apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 5));
@@ -5595,8 +5676,8 @@ function removeExistingOverlay() {
     console.log('[OVERLAY] Existing overlay removed');
   }
   
-  // Also remove original subtitle overlay
-  removeOriginalSubtitleOverlay();
+  // Don't remove original subtitle overlay here - let it be managed independently
+  // removeOriginalSubtitleOverlay();
 }
 
 function startSubtitleUpdates() {
@@ -5881,7 +5962,12 @@ function getTranslationApiInfo() {
 // Load original language display setting
 function loadOriginalLanguageSetting() {
   const saved = localStorage.getItem('showOriginalLanguage');
-  showOriginalLanguage = saved === 'true';
+  if (saved !== null) {
+    showOriginalLanguage = saved === 'true';
+  } else {
+    // If no value is saved, keep the default value (false)
+    showOriginalLanguage = false;
+  }
   return showOriginalLanguage;
 }
 
@@ -5976,8 +6062,8 @@ async function toggleOriginalLanguage() {
 
 // Create original language controls
 function createOriginalLanguageControls() {
-  // Load current setting
-  loadOriginalLanguageSetting();
+  // Don't load setting here - it's already loaded in init()
+  // loadOriginalLanguageSetting();
   
   // Create container
   const container = document.createElement('div');
@@ -6347,7 +6433,7 @@ window.forceShowOriginalTest = function() {
     showNotification('تست زیرنویس اصلی - باید متن قرمز در بالای ویدیو ببینید');
     
     // Auto hide after 10 seconds
-    setTimeout(() => {
+setTimeout(() => {
       overlay.style.display = 'none';
       console.log('Test overlay hidden');
     }, 10000);
@@ -6361,5 +6447,199 @@ window.forceShowOriginalTest = function() {
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
-  init();
+    init();
+  }
+
+// Default translation prompt
+const DEFAULT_TRANSLATION_PROMPT = `Please translate the following English subtitle XML to Persian (Farsi). Keep the exact same XML structure and timing attributes. Only translate the text content inside the <text> tags. Make sure the translation is natural, conversational, and appropriate for the context. Preserve any formatting, punctuation, and maintain the same tone as the original.`;
+
+// Get translation prompt from localStorage or return default
+function getTranslationPrompt() {
+  const savedPrompt = localStorage.getItem('translation_prompt');
+  return savedPrompt || DEFAULT_TRANSLATION_PROMPT;
+}
+
+// Save translation prompt to localStorage
+function saveTranslationPrompt(prompt) {
+  localStorage.setItem('translation_prompt', prompt);
+}
+
+// Reset translation prompt to default
+function resetTranslationPrompt() {
+  localStorage.removeItem('translation_prompt');
+}
+
+// Create prompt editing panel
+function createPromptPanel() {
+  const panel = document.createElement('div');
+  panel.id = 'prompt-panel';
+  panel.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 2147483647;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif;
+  `;
+
+  const content = document.createElement('div');
+  content.style.cssText = `
+    background-color: #1a1a1a;
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80%;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    direction: rtl;
+    text-align: right;
+  `;
+
+  const title = document.createElement('h3');
+  title.textContent = 'ویرایش پرامپت ترجمه';
+  title.style.cssText = `
+    color: white;
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: bold;
+  `;
+
+  const textarea = document.createElement('textarea');
+  textarea.value = getTranslationPrompt();
+  textarea.style.cssText = `
+    width: 100%;
+    height: 200px;
+    background-color: #2a2a2a;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    color: white;
+    padding: 12px;
+    font-size: 14px;
+    font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif;
+    resize: vertical;
+    direction: ltr;
+    text-align: left;
+  `;
+
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.cssText = `
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    justify-content: flex-end;
+  `;
+
+  const saveButton = document.createElement('button');
+  saveButton.textContent = 'ذخیره';
+  saveButton.style.cssText = `
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif;
+    transition: background-color 0.2s;
+  `;
+  saveButton.addEventListener('mouseenter', () => {
+    saveButton.style.backgroundColor = '#45a049';
+  });
+  saveButton.addEventListener('mouseleave', () => {
+    saveButton.style.backgroundColor = '#4CAF50';
+  });
+  saveButton.addEventListener('click', () => {
+    saveTranslationPrompt(textarea.value);
+    showNotification('پرامپت ترجمه ذخیره شد');
+    hidePromptPanel();
+  });
+
+  const resetButton = document.createElement('button');
+  resetButton.textContent = 'بازگردانی به حالت پیش‌فرض';
+  resetButton.style.cssText = `
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif;
+    transition: background-color 0.2s;
+  `;
+  resetButton.addEventListener('mouseenter', () => {
+    resetButton.style.backgroundColor = '#f57c00';
+  });
+  resetButton.addEventListener('mouseleave', () => {
+    resetButton.style.backgroundColor = '#ff9800';
+  });
+  resetButton.addEventListener('click', () => {
+    if (confirm('آیا می‌خواهید پرامپت را به حالت پیش‌فرض بازگردانید؟')) {
+      resetTranslationPrompt();
+      textarea.value = DEFAULT_TRANSLATION_PROMPT;
+      showNotification('پرامپت به حالت پیش‌فرض بازگردانده شد');
+    }
+  });
+
+  const cancelButton = document.createElement('button');
+  cancelButton.textContent = 'لغو';
+  cancelButton.style.cssText = `
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif;
+    transition: background-color 0.2s;
+  `;
+  cancelButton.addEventListener('mouseenter', () => {
+    cancelButton.style.backgroundColor = '#da190b';
+  });
+  cancelButton.addEventListener('mouseleave', () => {
+    cancelButton.style.backgroundColor = '#f44336';
+  });
+  cancelButton.addEventListener('click', hidePromptPanel);
+
+  buttonContainer.appendChild(saveButton);
+  buttonContainer.appendChild(resetButton);
+  buttonContainer.appendChild(cancelButton);
+
+  content.appendChild(title);
+  content.appendChild(textarea);
+  content.appendChild(buttonContainer);
+  panel.appendChild(content);
+
+  // Close panel when clicking outside
+  panel.addEventListener('click', (e) => {
+    if (e.target === panel) {
+      hidePromptPanel();
+    }
+  });
+
+  return panel;
+}
+
+// Show prompt editing panel
+function showPromptPanel() {
+  // Remove existing panel if any
+  hidePromptPanel();
+  
+  const panel = createPromptPanel();
+  document.body.appendChild(panel);
+}
+
+// Hide prompt editing panel
+function hidePromptPanel() {
+  const existingPanel = document.getElementById('prompt-panel');
+  if (existingPanel) {
+    existingPanel.remove();
+  }
 }
