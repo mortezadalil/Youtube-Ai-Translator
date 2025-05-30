@@ -2012,10 +2012,10 @@ async function translateSubtitlesWithOpenRouter() {
         showNotification('⚠️ کلید OpenRouter API تنظیم نشده - لطفاً از تنظیمات کلید API را وارد کنید');
         
         // Reset button state when API key is missing
-        const translateButton = document.querySelector('.subtitle-translate-button');
-        if (translateButton) {
-          translateButton.textContent = 'دریافت و ترجمه زیرنویس';
-          translateButton.disabled = false;
+    const translateButton = document.querySelector('.subtitle-translate-button');
+    if (translateButton) {
+      translateButton.textContent = 'دریافت و ترجمه زیرنویس';
+      translateButton.disabled = false;
           translateButton.classList.remove('loading');
           translateButton.style.opacity = '1';
           translateButton.style.cursor = 'pointer';
@@ -5773,7 +5773,7 @@ function updateCurrentSubtitle() {
     if (subtitleContext.previous && showPreviousNextSubtitles) {
       previousElement.textContent = subtitleContext.previous.text;
       previousElement.style.display = 'block';
-    } else {
+  } else {
       previousElement.style.display = 'none';
     }
     
@@ -5795,7 +5795,7 @@ function updateCurrentSubtitle() {
     if (subtitleContext.next && showPreviousNextSubtitles) {
       nextElement.textContent = subtitleContext.next.text;
       nextElement.style.display = 'block';
-    } else {
+} else {
       nextElement.style.display = 'none';
     }
     
