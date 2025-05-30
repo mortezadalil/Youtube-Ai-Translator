@@ -12,11 +12,12 @@ let translatedSubtitleXml = ''; // Store the translated subtitle XML
 let subtitleTimeOffset = 0; // Time offset in seconds for subtitle synchronization
 let subtitleTimeMultiplier = 1.0; // Time multiplier for subtitle synchronization
 let subtitleVerticalPosition = 80; // Vertical position in pixels from bottom (default: 80px)
+let originalSubtitleVerticalPosition = 20; // Original subtitle position from top (default: 20px)
 let isSettingsBoxCollapsed = false; // Track if settings box is collapsed - default to expanded
 let isTranslationInProgress = false; // Track if translation is currently in progress
 let showOriginalLanguage = false; // Flag to track original language display state
 let originalSubtitles = []; // Store the original subtitles
-let originalSubtitleVerticalPosition = 100; // Vertical position for original subtitles
+let showPreviousNextSubtitles = true; // Flag to control showing previous/next subtitles (default: true)
 
 // Manual activation function for debugging
 function activateSubtitleTranslator() {
@@ -86,6 +87,7 @@ function init() {
   loadSubtitlePosition();
   loadOriginalSubtitlePosition();
   loadOriginalLanguageSetting();
+  loadPreviousNextSubtitlesSetting();
   
   // Setup mutation observer to detect video navigation
   setupNavigationObserver();
@@ -556,13 +558,14 @@ function createStyles() {
       color: white;
       border: none;
       border-radius: 4px;
-      font-size: 14px;
+      font-size: 12px;
       cursor: pointer;
       direction: rtl;
       transition: background-color 0.2s;
-      padding: 8px 12px;
+      padding: 6px 10px;
       width: 100%;
       font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+      margin-bottom: 6px;
     }
     
     .subtitle-translate-button:hover {
@@ -599,7 +602,7 @@ function createStyles() {
       background-color: #FF9800;
       color: white;
       font-weight: bold;
-      font-size: 13px;
+      font-size: 12px;
     }
     
     .subtitle-translate-button.orange:hover {
@@ -611,13 +614,14 @@ function createStyles() {
       color: white;
       border: none;
       border-radius: 4px;
-      font-size: 14px;
+      font-size: 12px;
       cursor: pointer;
       direction: rtl;
       transition: background-color 0.2s;
-      padding: 8px 12px;
+      padding: 6px 10px;
       width: 100%;
       font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+      margin-bottom: 6px;
     }
     
     .subtitle-visibility-button:hover {
@@ -643,13 +647,14 @@ function createStyles() {
       color: white;
       border: none;
       border-radius: 4px;
-      font-size: 14px;
+      font-size: 12px;
       cursor: pointer;
       direction: rtl;
       transition: background-color 0.2s;
-      padding: 8px 12px;
+      padding: 6px 10px;
       width: 100%;
       font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+      margin-bottom: 6px;
     }
     
     .subtitle-refresh-button:hover {
@@ -1061,11 +1066,11 @@ function createStyles() {
     .original-position-controls {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin: 8px 0;
-      padding: 8px;
+      gap: 6px;
+      margin: 0 0 6px 0;
+      padding: 6px;
       background-color: rgba(0, 0, 0, 0.6);
-      border-radius: 6px;
+      border-radius: 4px;
       border: 1px solid rgba(255, 255, 255, 0.2);
       font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
     }
@@ -1074,11 +1079,11 @@ function createStyles() {
     .subtitle-position-controls {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin: 8px 0;
-      padding: 8px;
+      gap: 6px;
+      margin: 0 0 6px 0;
+      padding: 6px;
       background-color: rgba(0, 0, 0, 0.6);
-      border-radius: 6px;
+      border-radius: 4px;
       border: 1px solid rgba(255, 255, 255, 0.2);
       font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
     }
@@ -1087,11 +1092,11 @@ function createStyles() {
     .original-language-controls {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin: 8px 0;
-      padding: 8px;
+      gap: 6px;
+      margin: 0 0 6px 0;
+      padding: 6px;
       background-color: rgba(0, 0, 0, 0.6);
-      border-radius: 6px;
+      border-radius: 4px;
       border: 1px solid rgba(255, 255, 255, 0.2);
       font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
     }
@@ -1100,18 +1105,18 @@ function createStyles() {
     .subtitle-position-label,
     .original-language-label {
       color: white;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: bold;
       direction: rtl;
       text-align: right;
-      min-width: 100px;
+      min-width: 90px;
     }
     
     .original-position-buttons,
     .subtitle-position-buttons {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
     }
     
     .original-position-button,
@@ -1119,10 +1124,10 @@ function createStyles() {
       background-color: #4CAF50;
       color: white;
       border: none;
-      border-radius: 4px;
-      width: 24px;
-      height: 24px;
-      font-size: 14px;
+      border-radius: 3px;
+      width: 20px;
+      height: 20px;
+      font-size: 12px;
       font-weight: bold;
       cursor: pointer;
       display: flex;
@@ -1139,20 +1144,20 @@ function createStyles() {
     .original-position-value,
     .subtitle-position-value {
       color: white;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: bold;
-      min-width: 35px;
+      min-width: 30px;
       text-align: center;
       background-color: rgba(255, 255, 255, 0.1);
-      padding: 2px 6px;
+      padding: 2px 4px;
       border-radius: 3px;
       border: 1px solid rgba(255, 255, 255, 0.2);
     }
     
     /* Original language checkbox styling */
     .original-language-checkbox {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       accent-color: #4CAF50;
       cursor: pointer;
       margin: 0;
@@ -1643,14 +1648,15 @@ function addTranslateButton() {
     clearButton.style.color = 'white';
     clearButton.style.border = 'none';
     clearButton.style.borderRadius = '4px';
-    clearButton.style.fontSize = '14px';
+    clearButton.style.fontSize = '12px';
     clearButton.style.cursor = 'pointer';
     clearButton.style.direction = 'rtl';
     clearButton.style.transition = 'background-color 0.2s';
-    clearButton.style.padding = '8px 12px';
+    clearButton.style.padding = '6px 10px';
     clearButton.style.width = '100%';
     clearButton.style.fontFamily = "'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif";
-    clearButton.style.marginTop = '5px';
+    clearButton.style.marginTop = '0px';
+    clearButton.style.marginBottom = '6px';
     clearButton.addEventListener('click', showSavedSubtitlesViewer);
     clearButton.addEventListener('mouseenter', () => {
       clearButton.style.backgroundColor = '#1976D2';
@@ -1687,7 +1693,10 @@ function addTranslateButton() {
       clearProgressButton.textContent = 'شروع مجدد ترجمه';
       clearProgressButton.className = 'subtitle-refresh-button';
       clearProgressButton.style.backgroundColor = '#f44336';
-      clearProgressButton.style.marginTop = '5px';
+      clearProgressButton.style.marginTop = '0px';
+      clearProgressButton.style.marginBottom = '6px';
+      clearProgressButton.style.padding = '6px 10px';
+      clearProgressButton.style.fontSize = '12px';
       clearProgressButton.title = 'پاک کردن پیشرفت و شروع از ابتدا';
       clearProgressButton.addEventListener('click', () => {
         if (confirm('آیا می‌خواهید پیشرفت ترجمه را پاک کرده و از ابتدا شروع کنید؟')) {
@@ -1711,6 +1720,10 @@ function addTranslateButton() {
   // Add original language position controls (always visible)
   const originalPositionControls = createOriginalPositionControls();
   buttonContainer.appendChild(originalPositionControls);
+  
+  // Add previous/next subtitles controls (always visible)
+  const previousNextControls = createPreviousNextSubtitlesControls();
+  buttonContainer.appendChild(previousNextControls);
   
   console.log('--- END addTranslateButton ---');
 }
@@ -1997,12 +2010,40 @@ async function translateSubtitlesWithOpenRouter() {
       const openrouterKey = localStorage.getItem('openrouter_api_key');
       if (!openrouterKey) {
         showNotification('⚠️ کلید OpenRouter API تنظیم نشده - لطفاً از تنظیمات کلید API را وارد کنید');
+        
+        // Reset button state when API key is missing
+        const translateButton = document.querySelector('.subtitle-translate-button');
+        if (translateButton) {
+          translateButton.textContent = 'دریافت و ترجمه زیرنویس';
+          translateButton.disabled = false;
+          translateButton.classList.remove('loading');
+          translateButton.style.opacity = '1';
+          translateButton.style.cursor = 'pointer';
+        }
+        
+        // Reset translation in progress flag
+        isTranslationInProgress = false;
+        
         return;
       }
     } else if (apiInfo.api === 'gemini') {
       const geminiKey = localStorage.getItem('geminiApiKey');
       if (!geminiKey) {
         showNotification('⚠️ کلید Gemini API تنظیم نشده - لطفاً از تنظیمات کلید API را وارد کنید');
+        
+        // Reset button state when API key is missing
+        const translateButton = document.querySelector('.subtitle-translate-button');
+        if (translateButton) {
+          translateButton.textContent = 'دریافت و ترجمه زیرنویس';
+          translateButton.disabled = false;
+          translateButton.classList.remove('loading');
+          translateButton.style.opacity = '1';
+          translateButton.style.cursor = 'pointer';
+        }
+        
+        // Reset translation in progress flag
+        isTranslationInProgress = false;
+        
         return;
       }
     }
@@ -3685,7 +3726,7 @@ function showNotification(message) {
   notification.style.position = 'fixed';
   notification.style.top = '20px';
   notification.style.right = '20px';
-  notification.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+  notification.style.backgroundColor = 'rgba(140, 0, 0, 0.9)';
   notification.style.color = 'white';
   notification.style.padding = '10px 15px';
   notification.style.borderRadius = '5px';
@@ -4756,7 +4797,7 @@ function extractYouTubeSubtitles(videoId) {
       console.error('[EXTRACT] All subtitle extraction methods failed');
       reject(new Error('No subtitles found for this video. The video may not have subtitles or they may be disabled.'));
       
-    } catch (error) {
+  } catch (error) {
       console.error('[EXTRACT] Error during subtitle extraction:', error);
       reject(error);
     }
@@ -4799,8 +4840,8 @@ async function tryExtractFromCaptionTracks(videoId) {
         if (captionTracks && captionTracks.length > 0) {
           console.log(`[EXTRACT] Found ${captionTracks.length} caption tracks`);
           break;
-        }
-      } catch (e) {
+              }
+            } catch (e) {
         continue;
       }
     }
@@ -4949,7 +4990,7 @@ async function tryExtractFromYouTubeAPI(videoId) {
     
     return await extractFromPlayerResponse(playerResponse);
     
-  } catch (error) {
+    } catch (error) {
     console.error('[EXTRACT] Error in tryExtractFromYouTubeAPI:', error);
     return null;
   }
@@ -5037,7 +5078,7 @@ async function extractFromPlayerResponse(playerResponse) {
           .trim();
         
         if (cleanText) {
-          subtitles.push({
+      subtitles.push({
             startTime: start,
             endTime: start + duration,
             duration: duration,
@@ -5204,12 +5245,12 @@ async function tryExtractFromTimedTextAPI(videoId) {
           console.log('[EXTRACT] Received response, length:', xmlText.length);
           
           if (xmlText && xmlText.trim() && !xmlText.includes('error') && !xmlText.includes('not found')) {
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
             const textElements = xmlDoc.getElementsByTagName('text');
-            
+    
             if (textElements.length > 0) {
-              const subtitles = [];
+    const subtitles = [];
               for (let i = 0; i < textElements.length; i++) {
                 const element = textElements[i];
                 const start = parseFloat(element.getAttribute('start') || '0');
@@ -5229,7 +5270,7 @@ async function tryExtractFromTimedTextAPI(videoId) {
                     .trim();
                   
                   if (cleanText) {
-                    subtitles.push({
+      subtitles.push({
                       startTime: start,
                       endTime: start + duration,
                       duration: duration,
@@ -5241,7 +5282,7 @@ async function tryExtractFromTimedTextAPI(videoId) {
               
               if (subtitles.length > 0) {
                 console.log(`[EXTRACT] Successfully extracted ${subtitles.length} subtitles from TimedText API`);
-                return subtitles;
+    return subtitles;
               }
             }
           }
@@ -5615,14 +5656,14 @@ function createSubtitleOverlay() {
   
   // Find the video container
   const videoContainer = findYouTubeVideoContainer();
-  if (!videoContainer) {
+    if (!videoContainer) {
     console.error('[OVERLAY] Could not find video container for subtitle overlay');
-    return;
-  }
-  
+      return;
+    }
+    
   // Create overlay container
-  const overlay = document.createElement('div');
-  overlay.className = 'subtitle-overlay';
+    const overlay = document.createElement('div');
+    overlay.className = 'subtitle-overlay';
   overlay.id = 'subtitle-overlay';
   
   // Create subtitle context container (for previous, current, next)
@@ -5661,8 +5702,8 @@ function createSubtitleOverlay() {
   overlay.style.bottom = `${verticalPosition}px`;
   
   // Add to video container
-  videoContainer.appendChild(overlay);
-  
+    videoContainer.appendChild(overlay);
+    
   console.log('[OVERLAY] Subtitle overlay created successfully');
   return overlay;
 }
@@ -5707,15 +5748,15 @@ function stopSubtitleUpdates() {
 }
 
 function updateCurrentSubtitle() {
-  try {
-    // Get current video time
-    const video = document.querySelector('video');
+    try {
+      // Get current video time
+      const video = document.querySelector('video');
     if (!video) {
       return;
     }
-    
-    const currentTime = video.currentTime;
-    
+      
+      const currentTime = video.currentTime;
+      
     // Find current subtitle and context
     const subtitleContext = findCurrentSubtitle(currentTime);
     
@@ -5729,10 +5770,10 @@ function updateCurrentSubtitle() {
     }
     
     // Update previous subtitle
-    if (subtitleContext.previous) {
+    if (subtitleContext.previous && showPreviousNextSubtitles) {
       previousElement.textContent = subtitleContext.previous.text;
       previousElement.style.display = 'block';
-  } else {
+    } else {
       previousElement.style.display = 'none';
     }
     
@@ -5745,16 +5786,16 @@ function updateCurrentSubtitle() {
       currentElement.textContent = 'قریب: ' + subtitleContext.upcoming.text;
       currentElement.style.display = 'block';
       currentElement.style.opacity = '0.6';
-  } else {
+    } else {
       currentElement.style.display = 'none';
       currentElement.style.opacity = '1';
     }
     
     // Update next subtitle
-    if (subtitleContext.next) {
+    if (subtitleContext.next && showPreviousNextSubtitles) {
       nextElement.textContent = subtitleContext.next.text;
       nextElement.style.display = 'block';
-} else {
+    } else {
       nextElement.style.display = 'none';
     }
     
@@ -5803,7 +5844,7 @@ function findCurrentSubtitle(currentTime) {
     if (currentIndex < translatedSubtitles.length - 1) {
       next = translatedSubtitles[currentIndex + 1];
     }
-} else {
+  } else {
     // No current subtitle, find upcoming one
     upcoming = findUpcomingSubtitle(adjustedTime);
     
@@ -6661,4 +6702,105 @@ function hidePromptPanel() {
   if (existingPanel) {
     existingPanel.remove();
   }
+}
+
+// Load previous/next subtitles setting from localStorage
+function loadPreviousNextSubtitlesSetting() {
+  try {
+    const saved = localStorage.getItem('showPreviousNextSubtitles');
+    if (saved !== null) {
+      showPreviousNextSubtitles = saved === 'true';
+  } else {
+      showPreviousNextSubtitles = true; // Default to true
+    }
+    console.log(`[SETTINGS] Loaded previous/next subtitles setting: ${showPreviousNextSubtitles}`);
+  } catch (error) {
+    console.error('[SETTINGS] Error loading previous/next subtitles setting:', error);
+    showPreviousNextSubtitles = true; // Default to true on error
+    // Clean up corrupted localStorage
+    try {
+      localStorage.removeItem('showPreviousNextSubtitles');
+    } catch (cleanupError) {
+      console.error('[SETTINGS] Error cleaning up corrupted localStorage:', cleanupError);
+    }
+  }
+}
+
+// Save previous/next subtitles setting to localStorage
+function savePreviousNextSubtitlesSetting(show) {
+  try {
+    localStorage.setItem('showPreviousNextSubtitles', show.toString());
+    console.log(`[SETTINGS] Saved previous/next subtitles setting: ${show}`);
+  } catch (error) {
+    console.error('[SETTINGS] Error saving previous/next subtitles setting:', error);
+  }
+}
+
+// Toggle previous/next subtitles display
+function togglePreviousNextSubtitles() {
+  showPreviousNextSubtitles = !showPreviousNextSubtitles;
+  savePreviousNextSubtitlesSetting(showPreviousNextSubtitles);
+  
+  console.log(`[PREV_NEXT] Toggling previous/next subtitles display to: ${showPreviousNextSubtitles}`);
+  
+  // Update checkbox state
+  const checkbox = document.querySelector('.previous-next-subtitles-checkbox');
+  if (checkbox) {
+    checkbox.checked = showPreviousNextSubtitles;
+  }
+  
+  // Update subtitle display immediately
+  const previousElement = document.getElementById('subtitle-previous');
+  const nextElement = document.getElementById('subtitle-next');
+  
+  if (previousElement && nextElement) {
+    if (showPreviousNextSubtitles) {
+      // Show elements if they have content
+      if (previousElement.textContent) {
+        previousElement.style.display = 'block';
+      }
+      if (nextElement.textContent) {
+        nextElement.style.display = 'block';
+      }
+      showNotification('نمایش زیرنویس‌های قبل و بعد فعال شد');
+} else {
+      // Hide elements
+      previousElement.style.display = 'none';
+      nextElement.style.display = 'none';
+      showNotification('نمایش زیرنویس‌های قبل و بعد غیرفعال شد');
+    }
+  }
+}
+
+// Create previous/next subtitles controls
+function createPreviousNextSubtitlesControls() {
+  // Create container
+  const container = document.createElement('div');
+  container.className = 'original-language-controls'; // Reuse same styling
+  
+  // Create label
+  const label = document.createElement('div');
+  label.className = 'original-language-label';
+  label.textContent = 'نمایش زیرنویس قبل و بعد:';
+  
+  // Create checkbox
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.className = 'previous-next-subtitles-checkbox';
+  checkbox.style.width = '16px';
+  checkbox.style.height = '16px';
+  checkbox.style.accentColor = '#4CAF50';
+  checkbox.style.cursor = 'pointer';
+  checkbox.style.margin = '0';
+  checkbox.checked = showPreviousNextSubtitles;
+  checkbox.addEventListener('change', togglePreviousNextSubtitles);
+  
+  // Add title for clarity
+  checkbox.title = 'فعال/غیرفعال کردن نمایش زیرنویس‌های قبل و بعد از زیرنویس اصلی';
+  
+  // Assemble container
+  container.appendChild(label);
+  container.appendChild(checkbox);
+  
+  return container;
 }
