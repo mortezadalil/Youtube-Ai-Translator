@@ -39,7 +39,7 @@ function activateSubtitleTranslator() {
   createStyles();
   
   // Force create settings box
-  const content = forceCreateSettingsBox();
+  const content = createSettingsBox();
   
   if (content) {
     console.log('[MANUAL] Manual activation successful');
