@@ -39,7 +39,7 @@ function activateSubtitleTranslator() {
   createStyles();
   
   // Force create settings box
-  const content = createSettingsBox();
+  const content = forceCreateSettingsBox();
   
   if (content) {
     console.log('[MANUAL] Manual activation successful');
@@ -76,9 +76,30 @@ function init() {
     return;
   }
   
+  // Clear previous video's subtitles if video ID changed
+  if (currentVideoId && currentVideoId !== videoId) {
+    console.log(`[EXIT] 🚪 Exiting video ${currentVideoId} and switching to ${videoId}`);
+    console.log(`[INIT] Video changed from ${currentVideoId} to ${videoId}, clearing previous subtitles`);
+    clearCurrentVideoData();
+  }
+
   currentVideoId = videoId;
   lastProcessedUrl = window.location.href;
   console.log('[INIT] Current video ID set to:', currentVideoId);
+
+  // Check if this video has saved subtitles in localStorage
+  const savedSubtitles = loadSubtitlesFromStorage(videoId);
+  if (savedSubtitles && savedSubtitles.length > 0) {
+    console.log(`[INIT] ✅ Video ${videoId} has ${savedSubtitles.length} saved subtitles in localStorage`);
+    // Load the saved subtitles for display
+    translatedSubtitles = savedSubtitles;
+  } else {
+    console.log(`[INIT] ❌ Video ${videoId} has NO saved subtitles in localStorage`);
+    // Clear any existing subtitles and hide subtitle display
+    translatedSubtitles = [];
+    isDisplayingSubtitles = false;
+    removeExistingOverlay();
+  }
 
   // Create styles for the button and subtitles
   createStyles();
@@ -139,6 +160,53 @@ function init() {
   }, 5000);
   
   console.log('[INIT] Initialization complete');
+}
+
+// Clear current video data when switching videos
+function clearCurrentVideoData() {
+  console.log('[EXIT] 🚪 Exiting current video - cleaning up all data...');
+  console.log('[CLEAR] Clearing current video data...');
+  
+  // Stop subtitle updates
+  if (subtitleUpdateInterval) {
+    clearInterval(subtitleUpdateInterval);
+    subtitleUpdateInterval = null;
+    console.log('[CLEAR] Stopped subtitle update interval');
+  }
+  
+  // Clear subtitle arrays
+  translatedSubtitles = [];
+  originalSubtitles = [];
+  console.log('[CLEAR] Cleared subtitle arrays');
+  
+  // Hide and remove subtitle overlays
+  removeExistingOverlay();
+  removeOriginalSubtitleOverlay();
+  console.log('[CLEAR] Removed subtitle overlays');
+  
+  // Reset subtitle display state
+  isDisplayingSubtitles = false;
+  isSubtitleVisible = true;
+  console.log('[CLEAR] Reset subtitle display state');
+  
+  // Clear any ongoing translation
+  isTranslationInProgress = false;
+  console.log('[CLEAR] Reset translation state');
+  
+  // Force cancel all active translation requests
+  try {
+    forceCancelAllTranslationRequests();
+    console.log('[CLEAR] Force canceled all translation requests');
+  } catch(e) {
+    console.log('[CLEAR] Could not force cancel requests:', e.message);
+  }
+  
+  // Clear time range settings for new video
+  localStorage.removeItem('translationStartTime');
+  localStorage.removeItem('translationEndTime');
+  console.log('[CLEAR] Cleared time range settings');
+  
+  console.log('[CLEAR] Video data cleared successfully');
 }
 
 // Clean up old or corrupted subtitle data in localStorage
@@ -783,7 +851,7 @@ function createStyles() {
     .subtitle-next {
       display: inline-block;
       background-color: rgba(0, 0, 0, 0.5);
-      color: rgba(255, 255, 255, 0.7);
+      color: rgb(255, 255, 255);
       padding: 5px 15px;
       border-radius: 3px;
       font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
@@ -791,8 +859,8 @@ function createStyles() {
       font-weight: normal;
       max-width: 90%;
       line-height: 1.3;
-      text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
-      opacity: 0.8;
+      text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
+      opacity: 1;
       transition: opacity 0.3s ease;
     }
     
@@ -1979,18 +2047,18 @@ async function translateSubtitlesWithOpenRouter() {
       showNotification(`ترجمه بازه ${startDisplay} تا ${endDisplay} (${filteredSubtitles.length} زیرنویس)`);
     }
     
-    // Convert filtered subtitles to XML format
-    console.log('[TRANSLATE] Converting filtered subtitles to XML format');
-    const xml = convertSubtitlesToXml(filteredSubtitles);
-    originalSubtitleXml = xml;
+    // Convert filtered subtitles to SRT format instead of XML
+    console.log('[TRANSLATE] Converting filtered subtitles to SRT format');
+    const srt = convertSubtitlesToSrt(filteredSubtitles);
+    originalSubtitleXml = srt; // Keep the same variable name for compatibility
     
     // Store original subtitles for display
     originalSubtitles = filteredSubtitles;
     console.log(`[TRANSLATE] Stored ${originalSubtitles.length} original subtitles for display`);
     
-    // Log the original XML for debugging
-    console.log('[TRANSLATE] Original XML with timing data:');
-    console.log(xml);
+    // Log the original SRT for debugging
+    console.log('[TRANSLATE] Original SRT with timing data:');
+    console.log(srt);
     
     // Also log a sample of subtitles with their timing
     console.log('[TRANSLATE] Sample of filtered subtitles with timing:');
@@ -2798,25 +2866,30 @@ async function translateSubtitlesInChunks(subtitles) {
       updatePersistentProgressBar(progressPercentage, `${currentSavedSubtitles.length} زیرنویس از ${totalSubtitles} ذخیره شده`, `در حال ترجمه`);
       
       try {
-        // Convert chunk to XML
-        const chunkXml = convertSubtitlesToXml(chunk.subtitles);
-        
-        // Choose translation method based on selected model
+        // Convert chunk to appropriate format based on API
         const apiInfo = getTranslationApiInfo();
-        let translatedXml;
+        let chunkData;
+        let translatedData;
         
         if (apiInfo.api === 'gemini') {
-          // Use Gemini Direct API
-          console.log(`[CHUNKS] Using ${apiInfo.displayName} for model: ${apiInfo.model}`);
-          translatedXml = await translateWithGemini(chunkXml);
+          // Use XML format for Gemini API
+          console.log(`[CHUNKS] Using ${apiInfo.displayName} for model: ${apiInfo.model} (XML format)`);
+          chunkData = convertSubtitlesToXml(chunk.subtitles);
+          translatedData = await translateWithGemini(chunkData);
         } else {
-          // Use OpenRouter API
-          console.log(`[CHUNKS] Using ${apiInfo.displayName} for model: ${apiInfo.model}`);
-          translatedXml = await translateWithOpenRouter(chunkXml);
+          // Use SRT format for OpenRouter API
+          console.log(`[CHUNKS] Using ${apiInfo.displayName} for model: ${apiInfo.model} (SRT format)`);
+          chunkData = convertSubtitlesToSrt(chunk.subtitles);
+          translatedData = await translateWithOpenRouter(chunkData);
         }
         
-        // Parse translated XML
-        const chunkTranslatedSubtitles = parseTranslatedXml(translatedXml);
+        // Parse translated data based on format
+        let chunkTranslatedSubtitles;
+        if (apiInfo.api === 'gemini') {
+          chunkTranslatedSubtitles = parseTranslatedXml(translatedData);
+        } else {
+          chunkTranslatedSubtitles = parseTranslatedSrt(translatedData);
+        }
         
         if (chunkTranslatedSubtitles && chunkTranslatedSubtitles.length > 0) {
           translatedChunks.push(...chunkTranslatedSubtitles);
@@ -3763,21 +3836,30 @@ function setupNavigationObserver() {
     const currentUrl = window.location.href;
     
     // Check if URL changed
-    if (currentUrl !== lastProcessedUrl && currentUrl.includes('youtube.com/watch')) {
-      console.log('[OBSERVER] URL changed, reinitializing...');
-      lastProcessedUrl = currentUrl;
-      
-      // Update current video ID
-      const newVideoId = new URLSearchParams(window.location.search).get('v');
-      if (newVideoId && newVideoId !== currentVideoId) {
-        currentVideoId = newVideoId;
-        console.log('[OBSERVER] Video ID changed to:', currentVideoId);
+    if (currentUrl !== lastProcessedUrl) {
+      if (currentUrl.includes('youtube.com/watch')) {
+        console.log('[OBSERVER] URL changed, reinitializing...');
+        lastProcessedUrl = currentUrl;
+        
+        // Update current video ID
+        const newVideoId = new URLSearchParams(window.location.search).get('v');
+        if (newVideoId && newVideoId !== currentVideoId) {
+          currentVideoId = newVideoId;
+          console.log('[OBSERVER] Video ID changed to:', currentVideoId);
+        }
+        
+        // Small delay to let YouTube load
+        setTimeout(() => {
+          init();
+        }, 1000);
+      } else if (lastProcessedUrl.includes('youtube.com/watch') && !currentUrl.includes('youtube.com/watch')) {
+        // User left YouTube video page completely
+        console.log('[EXIT] 🚪 User completely left YouTube video page');
+        console.log('[EXIT] From:', lastProcessedUrl);
+        console.log('[EXIT] To:', currentUrl);
+        clearCurrentVideoData();
+        lastProcessedUrl = currentUrl;
       }
-      
-      // Small delay to let YouTube load
-      setTimeout(() => {
-        init();
-      }, 1000);
     }
   });
   
@@ -4751,22 +4833,55 @@ function extractYouTubeSubtitles(videoId) {
   
   return new Promise(async (resolve, reject) => {
     try {
+      // Method 0: Try new .NET API first (SRT format)
+      console.log('[EXTRACT] Method 0: Trying .NET API...');
+      try {
+        const response = await fetch('http://localhost:5000/fetchCaption', {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: `https://www.youtube.com/watch?v=${videoId}`
+        });
+        
+        if (response.ok) {
+          const srtContent = await response.text();
+          console.log('[EXTRACT] API response length:', srtContent.length);
+          
+          if (srtContent && srtContent.trim().length > 0) {
+            const apiSubtitles = parseSrtToSubtitles(srtContent);
+            if (apiSubtitles && apiSubtitles.length > 0) {
+              console.log(`[EXTRACT] ✅ API Success: ${apiSubtitles.length} subtitles`);
+              resolve(apiSubtitles);
+              return;
+            }
+          }
+        }
+        console.log('[EXTRACT] API failed or returned empty content');
+      } catch (apiError) {
+        console.log('[EXTRACT] API Error:', apiError.message);
+      }
+
+      // If API failed, show error message instead of using fallback methods
+      console.error('[EXTRACT] API extraction failed');
+      showNotification('استخراج زیرنویس فعلا امکانپذیر نیست');
+      reject(new Error('استخراج زیرنویس فعلا امکانپذیر نیست'));
+      
+      /*
       // Method 1: Try to get subtitles from YouTube's internal API
       const subtitles = await tryExtractFromYouTubeAPI(videoId);
       if (subtitles && subtitles.length > 0) {
         console.log(`[EXTRACT] Successfully extracted ${subtitles.length} subtitles from YouTube API`);
         resolve(subtitles);
-    return;
-  }
-  
+        return;
+      }
+      
       // Method 2: Try to get caption tracks info and fetch them
       const captionSubtitles = await tryExtractFromCaptionTracks(videoId);
       if (captionSubtitles && captionSubtitles.length > 0) {
         console.log(`[EXTRACT] Successfully extracted ${captionSubtitles.length} subtitles from caption tracks`);
         resolve(captionSubtitles);
-    return;
-  }
-  
+        return;
+      }
+      
       // Method 3: Try to extract from video page
       const pageSubtitles = await tryExtractFromVideoPage();
       if (pageSubtitles && pageSubtitles.length > 0) {
@@ -4796,8 +4911,9 @@ function extractYouTubeSubtitles(videoId) {
       // If all methods fail
       console.error('[EXTRACT] All subtitle extraction methods failed');
       reject(new Error('No subtitles found for this video. The video may not have subtitles or they may be disabled.'));
+      */
       
-  } catch (error) {
+    } catch (error) {
       console.error('[EXTRACT] Error during subtitle extraction:', error);
       reject(error);
     }
@@ -5304,37 +5420,43 @@ async function tryExtractFromTimedTextAPI(videoId) {
   }
 }
 
-function convertSubtitlesToXml(subtitles) {
-  console.log('[CONVERT] Converting subtitles to XML format');
+// Convert subtitles to SRT format instead of XML
+function convertSubtitlesToSrt(subtitles) {
+  console.log('[CONVERT] Converting subtitles to SRT format');
   
   if (!subtitles || subtitles.length === 0) {
     console.warn('[CONVERT] No subtitles to convert');
-    return '<transcript></transcript>';
+    return '';
   }
   
-  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<transcript>\n';
+  let srt = '';
   
   subtitles.forEach((subtitle, index) => {
-    // Escape XML special characters
-    const escapedText = subtitle.text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
+    const startTime = formatSecondsToSrtTime(subtitle.startTime);
+    const endTime = formatSecondsToSrtTime(subtitle.endTime);
     
-    xml += `  <text start="${subtitle.startTime}" dur="${subtitle.duration}" end="${subtitle.endTime}">${escapedText}</text>\n`;
+    srt += `${index + 1}\n`;
+    srt += `${startTime} --> ${endTime}\n`;
+    srt += `${subtitle.text}\n\n`;
   });
   
-  xml += '</transcript>';
-  
-  console.log(`[CONVERT] Converted ${subtitles.length} subtitles to XML`);
-  return xml;
+  console.log(`[CONVERT] Converted ${subtitles.length} subtitles to SRT`);
+  return srt.trim();
 }
 
-// Translate with OpenRouter API
-async function translateWithOpenRouter(xml) {
-  console.log('[TRANSLATE] Translating with OpenRouter API');
+// Helper function to format seconds to SRT time format
+function formatSecondsToSrtTime(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const milliseconds = Math.floor((seconds % 1) * 1000);
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
+}
+
+// Translate with OpenRouter API - Updated for SRT
+async function translateWithOpenRouter(srt) {
+  console.log('[TRANSLATE] Translating with OpenRouter API (SRT format)');
   
   return new Promise(async (resolve, reject) => {
     try {
@@ -5358,16 +5480,14 @@ async function translateWithOpenRouter(xml) {
         timeRangeInfo = `\n\nNote: This is a time range from ${startDisplay} to ${endDisplay} of the video.`;
       }
       
-      // Prepare the prompt
-      const prompt = getTranslationPrompt() + `\n\nXML to translate:\n${xml}`;
+      // Updated prompt for SRT format
+      const customPrompt = getTranslationPrompt();
+      const srtPrompt = customPrompt.replace(/XML/g, 'SRT').replace(/xml/g, 'srt');
+      const prompt = `${srtPrompt}\n\nSRT to translate:\n${srt}${timeRangeInfo}`;
       
-      console.log('[TRANSLATE] Using custom prompt');
+      console.log('[TRANSLATE] Using SRT prompt');
       console.log('[TRANSLATE] API Key:', apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 5));
       console.log('[TRANSLATE] Prompt length:', prompt.length);
-      console.log('[TRANSLATE] Complete prompt being sent:');
-      console.log('--- START PROMPT ---');
-      console.log(prompt);
-      console.log('--- END PROMPT ---');
       
       // Make request to OpenRouter API
       const requestBody = {
@@ -5383,13 +5503,12 @@ async function translateWithOpenRouter(xml) {
         top_p: 0.95
       };
       
-      console.log('[TRANSLATE] Request body:', JSON.stringify(requestBody, null, 2));
       console.log('[TRANSLATE] Sending request to OpenRouter API...');
   
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': window.location.origin,
           'X-Title': 'YouTube Subtitle Translator'
@@ -5398,18 +5517,16 @@ async function translateWithOpenRouter(xml) {
       });
       
       console.log('[TRANSLATE] Response status:', response.status);
-      console.log('[TRANSLATE] Response headers:', Object.fromEntries(response.headers.entries()));
   
-  if (!response.ok) {
+      if (!response.ok) {
         const errorText = await response.text();
         console.error('[TRANSLATE] OpenRouter API error response:', errorText);
         reject(new Error(`OpenRouter API error: ${response.status} - ${errorText}`));
         return;
-  }
+      }
   
-  const data = await response.json();
+      const data = await response.json();
       console.log('[TRANSLATE] ==================== OPENROUTER RESPONSE ====================');
-      console.log('[TRANSLATE] Full response data:', JSON.stringify(data, null, 2));
       
       if (!data.choices || data.choices.length === 0) {
         console.error('[TRANSLATE] No choices in OpenRouter response:', data);
@@ -5427,8 +5544,6 @@ async function translateWithOpenRouter(xml) {
       
       console.log('[TRANSLATE] Translation completed successfully');
       console.log('[TRANSLATE] Translated text length:', translatedText.length);
-      console.log('[TRANSLATE] Translated text preview (first 500 chars):');
-      console.log(translatedText.substring(0, 500) + (translatedText.length > 500 ? '...' : ''));
       console.log('[TRANSLATE] ========================================================');
       
       resolve(translatedText);
@@ -5438,6 +5553,67 @@ async function translateWithOpenRouter(xml) {
       reject(error);
     }
   });
+}
+
+// Parse translated SRT response
+function parseTranslatedSrt(srtText) {
+  console.log('[PARSE] Parsing translated SRT to subtitle objects');
+  
+  if (!srtText || srtText.trim() === '') {
+    console.warn('[PARSE] Empty SRT provided');
+    return [];
+  }
+  
+  try {
+    // Clean up the SRT if it contains extra text
+    let cleanSrt = srtText;
+    
+    // Try to extract SRT content from response if it's wrapped in other text
+    const srtMatch = srtText.match(/(\d+\s*\n[0-9:,\s\-\>]+\n[\s\S]*?)(?=\n\d+\s*\n[0-9:,\s\-\>]+\n|\n*$)/g);
+    if (srtMatch && srtMatch.length > 0) {
+      cleanSrt = srtMatch.join('\n\n');
+    }
+    
+    return parseSrtToSubtitles(cleanSrt);
+    
+  } catch (error) {
+    console.error('[PARSE] Error parsing translated SRT:', error);
+    
+    // Fallback: try to extract text using regex
+    try {
+      console.log('[PARSE] Attempting regex fallback parsing...');
+      const subtitleBlocks = srtText.split(/\n\s*\n/);
+      const subtitles = [];
+      
+      subtitleBlocks.forEach((block, index) => {
+        const lines = block.trim().split('\n');
+        if (lines.length >= 3) {
+          const timeMatch = lines[1].match(/(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})/);
+          if (timeMatch) {
+            const startTime = srtTimeStringToSeconds(timeMatch[1]);
+            const endTime = srtTimeStringToSeconds(timeMatch[2]);
+            const text = lines.slice(2).join('\n').trim();
+            
+            if (text) {
+              subtitles.push({
+                startTime: startTime,
+                endTime: endTime,
+                duration: endTime - startTime,
+                text: text
+              });
+            }
+          }
+        }
+      });
+      
+      console.log(`[PARSE] Regex fallback extracted ${subtitles.length} subtitles`);
+      return subtitles;
+    } catch (regexError) {
+      console.error('[PARSE] Regex fallback also failed:', regexError);
+    }
+    
+    return [];
+  }
 }
 
 function translateWithGemini(xml) {
@@ -6803,4 +6979,248 @@ function createPreviousNextSubtitlesControls() {
   container.appendChild(checkbox);
   
   return container;
+}
+
+// Parse SRT content to subtitle objects
+function parseSrtToSubtitles(srtContent) {
+  console.log('[PARSE] Parsing SRT content to subtitle objects');
+  
+  if (!srtContent || srtContent.trim() === '') {
+    console.warn('[PARSE] Empty SRT content provided');
+    return [];
+  }
+
+  try {
+    const subtitles = [];
+    const blocks = srtContent.trim().split(/\n\s*\n/);
+    
+    for (const block of blocks) {
+      const lines = block.trim().split('\n');
+      if (lines.length < 3) continue;
+      
+      // Line 1: Subtitle index (ignore)
+      // Line 2: Time range
+      // Line 3+: Subtitle text
+      
+      const timeMatch = lines[1].match(/(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})/);
+      if (!timeMatch) continue;
+      
+      const startTime = srtTimeStringToSeconds(timeMatch[1]);
+      const endTime = srtTimeStringToSeconds(timeMatch[2]);
+      const text = lines.slice(2).join('\n').trim();
+      
+      if (text && startTime !== null && endTime !== null) {
+        subtitles.push({
+          startTime: startTime,
+          endTime: endTime,
+          duration: endTime - startTime,
+          text: text
+        });
+      }
+    }
+    
+    console.log(`[PARSE] Successfully parsed ${subtitles.length} subtitles from SRT`);
+    return subtitles;
+    
+  } catch (error) {
+    console.error('[PARSE] Error parsing SRT content:', error);
+    return [];
+  }
+}
+
+// Convert SRT time string to seconds
+function srtTimeStringToSeconds(timeString) {
+  try {
+    // Format: HH:MM:SS,mmm
+    const match = timeString.match(/(\d{2}):(\d{2}):(\d{2}),(\d{3})/);
+    if (!match) return null;
+    
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const seconds = parseInt(match[3], 10);
+    const milliseconds = parseInt(match[4], 10);
+    
+    return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
+  } catch (error) {
+    console.error('[PARSE] Error parsing time string:', timeString, error);
+    return null;
+  }
+}
+
+// Convert subtitles to XML format for Gemini API
+function convertSubtitlesToXml(subtitles) {
+  console.log('[CONVERT] Converting subtitles to XML format');
+  
+  if (!subtitles || subtitles.length === 0) {
+    console.warn('[CONVERT] No subtitles to convert');
+    return '<?xml version="1.0" encoding="utf-8" ?><transcript></transcript>';
+  }
+  
+  let xml = '<?xml version="1.0" encoding="utf-8" ?>\n<transcript>\n';
+  
+  subtitles.forEach((subtitle) => {
+    const startTime = subtitle.startTime.toFixed(3);
+    const duration = (subtitle.endTime - subtitle.startTime).toFixed(3);
+    const endTime = subtitle.endTime.toFixed(3);
+    
+    // Escape XML characters in text
+    const escapedText = subtitle.text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+    
+    xml += `  <text start="${startTime}" dur="${duration}" end="${endTime}">${escapedText}</text>\n`;
+  });
+  
+  xml += '</transcript>';
+  
+  console.log(`[CONVERT] Converted ${subtitles.length} subtitles to XML`);
+  return xml;
+}
+
+// Force cancel all translation requests and reset states
+function forceCancelAllTranslationRequests() {
+  console.log('🛑 [FORCE_CANCEL] Starting force cancellation of all translation requests...');
+  
+  try {
+    // Step 1: Override XMLHttpRequest to block translation requests
+    const originalXHR = window.XMLHttpRequest;
+    window.XMLHttpRequest = function() {
+      const xhr = new originalXHR();
+      const originalOpen = xhr.open;
+      const originalSend = xhr.send;
+      
+      xhr.open = function(method, url, ...args) {
+        // Block translation API requests
+        if (url && (url.includes('openrouter.ai') || url.includes('generativelanguage.googleapis.com'))) {
+          console.log('🚫 [FORCE_CANCEL] Blocked translation request to:', url);
+          // Create a dummy request that immediately fails
+          this.status = 0;
+          this.readyState = 4;
+          setTimeout(() => {
+            if (this.onerror) this.onerror(new Error('Translation request cancelled'));
+          }, 0);
+          return;
+        }
+        return originalOpen.apply(this, [method, url, ...args]);
+      };
+      
+      xhr.send = function(...args) {
+        // Additional check on send
+        if (this.responseURL && (this.responseURL.includes('openrouter.ai') || this.responseURL.includes('generativelanguage.googleapis.com'))) {
+          console.log('🚫 [FORCE_CANCEL] Blocked translation request on send');
+          return;
+        }
+        return originalSend.apply(this, args);
+      };
+      
+      return xhr;
+    };
+
+    // Step 2: Override fetch to block translation requests
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options) {
+      if (url && (url.includes('openrouter.ai') || url.includes('generativelanguage.googleapis.com'))) {
+        console.log('🚫 [FORCE_CANCEL] Blocked fetch request to:', url);
+        return Promise.reject(new Error('Translation request cancelled'));
+      }
+      return originalFetch.apply(this, arguments);
+    };
+
+    // Step 3: Clear all timers and intervals (with safety limit)
+    let timerCount = 0;
+    const maxTimers = 1000; // Safety limit
+    
+    // Clear timeouts
+    for (let i = 1; i < maxTimers; i++) {
+      try {
+        clearTimeout(i);
+        timerCount++;
+      } catch (e) {
+        // Ignore errors for non-existent timers
+      }
+    }
+    
+    // Clear intervals
+    for (let i = 1; i < maxTimers; i++) {
+      try {
+        clearInterval(i);
+        timerCount++;
+      } catch (e) {
+        // Ignore errors for non-existent intervals
+      }
+    }
+    
+    console.log(`🧹 [FORCE_CANCEL] Cleared ${timerCount} timers/intervals`);
+
+    // Step 4: Reset all translation-related global states
+    translatedSubtitles = [];
+    originalSubtitles = [];
+    isDisplayingSubtitles = false;
+    isSubtitleVisible = false;
+    
+    // Step 5: Hide progress bars
+    const progressBar = document.querySelector('.translation-progress-bar');
+    if (progressBar) {
+      progressBar.style.display = 'none';
+    }
+    
+    const persistentProgressBar = document.querySelector('.persistent-progress-bar');
+    if (persistentProgressBar) {
+      persistentProgressBar.style.display = 'none';
+    }
+
+    // Step 6: Clear translation progress from localStorage
+    const currentVideoId = getCurrentVideoId();
+    if (currentVideoId) {
+      const progressKey = `translation_progress_${currentVideoId}`;
+      localStorage.removeItem(progressKey);
+      console.log('🗑️ [FORCE_CANCEL] Cleared translation progress for video:', currentVideoId);
+    }
+
+    // Step 7: Stop subtitle updates
+    if (subtitleUpdateInterval) {
+      clearInterval(subtitleUpdateInterval);
+      subtitleUpdateInterval = null;
+      console.log('⏹️ [FORCE_CANCEL] Stopped subtitle updates');
+    }
+
+    // Step 8: Remove overlays
+    removeExistingOverlay();
+    removeOriginalSubtitleOverlay();
+
+    // Step 9: Show Persian notification
+    showNotification('❌ تمام درخواست‌های ترجمه لغو شدند');
+
+    console.log('✅ [FORCE_CANCEL] Force cancellation completed successfully');
+
+    // Step 10: Restore normal functionality after 30 seconds
+    setTimeout(() => {
+      try {
+        window.XMLHttpRequest = originalXHR;
+        window.fetch = originalFetch;
+        console.log('🔄 [FORCE_CANCEL] Restored normal network functionality');
+        showNotification('🔄 عملکرد شبکه بازگردانی شد');
+      } catch (e) {
+        console.error('❌ [FORCE_CANCEL] Error restoring network functionality:', e);
+      }
+    }, 30000);
+
+  } catch (error) {
+    console.error('❌ [FORCE_CANCEL] Error during force cancellation:', error);
+    showNotification('❌ خطا در لغو درخواست‌ها');
+  }
+}
+
+// Helper function to get current video ID
+function getCurrentVideoId() {
+  try {
+    const url = new URL(window.location.href);
+    return url.searchParams.get('v');
+  } catch (e) {
+    console.error('[VIDEO_ID] Error getting current video ID:', e);
+    return null;
+  }
 }
