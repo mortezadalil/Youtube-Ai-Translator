@@ -4836,7 +4836,7 @@ function extractYouTubeSubtitles(videoId) {
       // Method 0: Try new .NET API first (SRT format)
       console.log('[EXTRACT] Method 0: Trying .NET API...');
       try {
-        const response = await fetch('http://localhost:5000/fetchCaption', {
+        const response = await fetch('https://getsub.bot724.top/fetchCaption', {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
           body: `https://www.youtube.com/watch?v=${videoId}`
