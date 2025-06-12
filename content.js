@@ -13,15 +13,18 @@ let subtitleTimeOffset = 0; // Time offset in seconds for subtitle synchronizati
 let subtitleTimeMultiplier = 1.0; // Time multiplier for subtitle synchronization
 let subtitleVerticalPosition = 80; // Vertical position in pixels from bottom (default: 80px)
 let originalSubtitleVerticalPosition = 20; // Original subtitle position from top (default: 20px)
+let subtitleFontSize = 18; // Subtitle font size in pixels (default: 18px)
 let isSettingsBoxCollapsed = false; // Track if settings box is collapsed - default to expanded
 let isTranslationInProgress = false; // Track if translation is currently in progress
 let showOriginalLanguage = false; // Flag to track original language display state
 let originalSubtitles = []; // Store the original subtitles
 let showPreviousNextSubtitles = true; // Flag to control showing previous/next subtitles (default: true)
+let isInitializing = false; // Flag to prevent multiple simultaneous initialization
 
 // Manual activation function for debugging
 function activateSubtitleTranslator() {
-  console.log('[MANUAL] Manually activating subtitle translator...');
+  console.log('🔧 [MANUAL] Function called - Stack trace:', new Error().stack);
+  console.log('🔧 [MANUAL] Manually activating subtitle translator...');
   
   // Force remove any existing elements
   removeSettingsBox();
@@ -42,10 +45,12 @@ function activateSubtitleTranslator() {
   const content = forceCreateSettingsBox();
   
   if (content) {
-    console.log('[MANUAL] Manual activation successful');
+    console.log('✅ [MANUAL] Manual activation successful');
+    console.log('📢 [MANUAL] About to show success notification');
     showNotification('اکستنشن به صورت دستی فعال شد');
   } else {
-    console.error('[MANUAL] Manual activation failed');
+    console.error('❌ [MANUAL] Manual activation failed');
+    console.log('📢 [MANUAL] About to show error notification');
     showNotification('خطا در فعال‌سازی دستی اکستنشن');
   }
 }
@@ -55,8 +60,14 @@ window.activateSubtitleTranslator = activateSubtitleTranslator;
 
 // Initialize the extension
 function init() {
-  console.log('[INIT] YouTube Subtitle Translator initializing...');
-  console.log('[INIT] Current URL:', window.location.href);
+  // Prevent multiple simultaneous initialization
+  if (isInitializing) {
+    console.log('⚠️ [INIT] Already initializing, skipping duplicate call');
+    return;
+  }
+  
+  isInitializing = true;
+  console.log('✅ [INIT] Starting initialization');
   
   // Clean up localStorage first
   cleanupLocalStorage();
@@ -64,6 +75,7 @@ function init() {
   // Check if we're on a YouTube video page
   if (!window.location.href.includes('youtube.com/watch')) {
     console.log('[INIT] Not on a YouTube video page, exiting init');
+    isInitializing = false;
     return;
   }
 
@@ -73,6 +85,7 @@ function init() {
   const videoId = new URLSearchParams(window.location.search).get('v');
   if (!videoId) {
     console.error('[INIT] Could not find video ID in URL during initialization');
+    isInitializing = false;
     return;
   }
   
@@ -106,6 +119,7 @@ function init() {
   
   // Load saved settings
   loadSubtitlePosition();
+  loadSubtitleFontSize();
   loadOriginalSubtitlePosition();
   loadOriginalLanguageSetting();
   loadPreviousNextSubtitlesSetting();
@@ -152,14 +166,41 @@ function init() {
   setTimeout(() => {
     const existingBox = document.getElementById('subtitle-settings-box');
     if (!existingBox || existingBox.style.display === 'none') {
-      console.log('[INIT] Auto-retry: Settings box not found, attempting manual activation...');
-      activateSubtitleTranslator();
+      console.log('🔄 [INIT] Auto-retry: Settings box not found, attempting silent manual activation...');
+      if (!isInitializing) {
+        // Silent activation without notification (since we already showed one)
+        console.log('🔧 [MANUAL-SILENT] Silently activating subtitle translator...');
+        
+        // Force remove any existing elements
+        removeSettingsBox();
+        
+        // Reset state
+        isDisplayingSubtitles = false;
+        isSubtitleVisible = false;
+        translatedSubtitles = [];
+        
+        // Get current video ID
+        currentVideoId = new URLSearchParams(window.location.search).get('v');
+        console.log('🔧 [MANUAL-SILENT] Current video ID:', currentVideoId);
+        
+        // Create styles
+        createStyles();
+        
+        // Force create settings box (without notification)
+        forceCreateSettingsBox();
+        console.log('🔧 [MANUAL-SILENT] Silent activation completed');
     } else {
-      console.log('[INIT] Auto-retry: Settings box found, no action needed');
+        console.log('⚠️ [INIT] Auto-retry: Init still in progress, skipping manual activation');
+      }
+    } else {
+      console.log('✅ [INIT] Auto-retry: Settings box found, no action needed');
     }
   }, 5000);
   
-  console.log('[INIT] Initialization complete');
+  console.log('🏁 [INIT] Initialization complete');
+  
+  // Reset initialization flag
+  isInitializing = false;
 }
 
 // Clear current video data when switching videos
@@ -376,6 +417,14 @@ function saveSubtitlesToStorage(videoId, subtitles) {
     
     // Also save to recent videos list
     updateRecentVideosList(videoId);
+    
+    // Refresh UI to show "Show Saved Subtitles" button if needed
+    setTimeout(() => {
+      if (getCurrentVideoId() === videoId) {
+        console.log('[STORAGE] Refreshing UI after saving subtitles');
+        addTranslateButton();
+      }
+    }, 100);
     
     return true;
   } catch (error) {
@@ -824,12 +873,12 @@ function createStyles() {
     
     .subtitle-text {
       display: inline-block;
-      background-color: rgba(0, 0, 0, 0.9);
-      color: white;
+      background-color: rgba(0, 0, 0, 0.7);
+      //color: white;
       padding: 10px 20px;
       border-radius: 4px;
       font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
-      font-size: 24px;
+      font-size: 18px !important;
       font-weight: bold;
       max-width: 80%;
       margin: 0 auto;
@@ -850,12 +899,12 @@ function createStyles() {
     .subtitle-previous,
     .subtitle-next {
       display: inline-block;
-      background-color: rgba(0, 0, 0, 0.5);
-      color: rgb(255, 255, 255);
+      background-color: rgba(0, 0, 0, 0.7);
+     // color: rgb(255, 255, 255);
       padding: 5px 15px;
       border-radius: 3px;
       font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
-      font-size: 16px;
+      font-size: 14px !important;
       font-weight: normal;
       max-width: 90%;
       line-height: 1.3;
@@ -1131,16 +1180,47 @@ function createStyles() {
     }
     
     /* Original subtitle position controls */
+    .original-position-container {
+      margin: 0 0 6px 0;
+      font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+    }
+    
     .original-position-controls {
       display: flex;
       align-items: center;
       gap: 6px;
-      margin: 0 0 6px 0;
+      margin: 0 0 3px 0;
       padding: 6px;
       background-color: rgba(0, 0, 0, 0.6);
       border-radius: 4px;
       border: 1px solid rgba(255, 255, 255, 0.2);
       font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+    }
+    
+    .original-status-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      padding: 4px 6px;
+      background-color: rgba(0, 0, 0, 0.4);
+      border-radius: 3px;
+      font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+    }
+    
+    .original-status-label {
+      color: white;
+      font-size: 10px;
+      font-weight: bold;
+      direction: rtl;
+      text-align: right;
+    }
+    
+    .original-status-value {
+      font-size: 10px;
+      font-weight: bold;
+      direction: rtl;
+      text-align: right;
     }
     
     /* Subtitle position controls - same style as original position controls */
@@ -1161,12 +1241,13 @@ function createStyles() {
       display: flex;
       align-items: center;
       gap: 6px;
-      margin: 0 0 6px 0;
+      margin: 0;
       padding: 6px;
-      background-color: rgba(0, 0, 0, 0.6);
+      background-color: transparent;
       border-radius: 4px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: none;
       font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+      flex: 1;
     }
     
     .original-position-label,
@@ -1177,7 +1258,7 @@ function createStyles() {
       font-weight: bold;
       direction: rtl;
       text-align: right;
-      min-width: 90px;
+      // min-width: 90px;
     }
     
     .original-position-buttons,
@@ -1557,6 +1638,7 @@ function removeSettingsBox() {
 // Add translate button
 function addTranslateButton() {
   console.log('--- START addTranslateButton ---');
+  console.log('[DEBUG] Extension version with font size controls - v1.0.1');
   
   // Get the settings content WITHOUT creating a new settings box
   // This breaks the infinite recursion
@@ -1618,28 +1700,81 @@ function addTranslateButton() {
   let hasCachedSubtitles = false;
   let cachedSubtitles = null;
   if (currentVideoId) {
-    cachedSubtitles = loadSubtitlesFromStorage(currentVideoId);
-    hasCachedSubtitles = cachedSubtitles && cachedSubtitles.length > 0;
-    console.log(`Checked for cached subtitles: found=${hasCachedSubtitles}, count=${cachedSubtitles ? cachedSubtitles.length : 0}`);
-  }
+    console.log(`[BUTTON_DEBUG] Current video ID: ${currentVideoId}`);
 
-  console.log(`Button state - hasCachedSubtitles: ${hasCachedSubtitles}, isDisplayingSubtitles: ${isDisplayingSubtitles}, isSubtitleVisible: ${isSubtitleVisible}`);
-
-  // Debugging: Double-check localStorage directly
+    // Debugging: Double-check localStorage directly FIRST
   try {
     const storageKey = `youtube_subtitles_${currentVideoId}`;
     const rawData = localStorage.getItem(storageKey);
-    console.log(`Direct localStorage check for ${storageKey}: ${rawData ? 'FOUND' : 'NOT FOUND'}`);
+      console.log(`[BUTTON_DEBUG] Direct localStorage check for ${storageKey}: ${rawData ? 'FOUND' : 'NOT FOUND'}`);
     if (rawData) {
       const parsedData = JSON.parse(rawData);
-      console.log(`Parsed data has ${parsedData.subtitles ? parsedData.subtitles.length : 0} subtitles`);
+        console.log(`[BUTTON_DEBUG] Raw localStorage has ${parsedData.subtitles ? parsedData.subtitles.length : 0} subtitles`);
+        console.log(`[BUTTON_DEBUG] Video ID matches: ${parsedData.videoId === currentVideoId ? 'YES' : 'NO'}`);
+        
+        // Also check progress info
+        const progress = calculateVideoTranslationProgress();
+        console.log(`[BUTTON_DEBUG] Progress calculation: ${progress.percentage}% (${progress.translatedCount}/${progress.totalCount})`);
     }
   } catch (e) {
-    console.error('Error checking localStorage directly:', e);
+      console.error('[BUTTON_DEBUG] Error checking localStorage directly:', e);
+    }
+    
+    cachedSubtitles = loadSubtitlesFromStorage(currentVideoId);
+    hasCachedSubtitles = cachedSubtitles && cachedSubtitles.length > 0;
+    console.log(`[BUTTON_DEBUG] loadSubtitlesFromStorage result: found=${hasCachedSubtitles}, count=${cachedSubtitles ? cachedSubtitles.length : 0}`);
   }
 
-  // Create buttons based on state
-  if (hasCachedSubtitles) {
+  console.log(`[BUTTON_DEBUG] Final button state - hasCachedSubtitles: ${hasCachedSubtitles}, isDisplayingSubtitles: ${isDisplayingSubtitles}, isSubtitleVisible: ${isSubtitleVisible}, isTranslationInProgress: ${isTranslationInProgress}`);
+
+  // BUGFIX: If we have saved subtitles, always treat them as cached subtitles
+  // This fixes the issue where progress shows 23% but button shows "دریافت و ترجمه"
+  if (!hasCachedSubtitles && currentVideoId) {
+    const checkAgain = loadSubtitlesFromStorage(currentVideoId);
+    if (checkAgain && checkAgain.length > 0) {
+      console.log(`[BUTTON_DEBUG] BUGFIX: Found saved subtitles on second check! Count: ${checkAgain.length}`);
+      hasCachedSubtitles = true;
+      cachedSubtitles = checkAgain;
+    }
+  }
+
+  // Function to check if we have any saved subtitles (original or translated)
+  function hasAnySavedSubtitles(videoId) {
+    if (!videoId) return false;
+    
+    // Check for translated subtitles
+    const translatedSubtitles = loadSubtitlesFromStorage(videoId);
+    if (translatedSubtitles && translatedSubtitles.length > 0) {
+      console.log('[SAVED_CHECK] Found translated subtitles:', translatedSubtitles.length);
+      return true;
+    }
+    
+    // Check for original language subtitles
+    const originalSubtitles = getOriginalLanguageSubtitles(videoId);
+    if (originalSubtitles && originalSubtitles.trim().length > 0) {
+      console.log('[SAVED_CHECK] Found original subtitles');
+      return true;
+    }
+    
+    console.log('[SAVED_CHECK] No saved subtitles found');
+    return false;
+  }
+
+  // Special case: If translation is in progress, show appropriate buttons
+  if (isTranslationInProgress) {
+    console.log('[BUTTON_DEBUG] Translation in progress - showing in-progress UI');
+    
+    // Show disabled translate button
+    const translateButton = document.createElement('button');
+    translateButton.textContent = 'در حال ترجمه...';
+    translateButton.className = 'subtitle-translate-button loading';
+    translateButton.disabled = true;
+    translateButton.style.opacity = '0.6';
+    translateButton.style.cursor = 'not-allowed';
+    buttonContainer.appendChild(translateButton);
+    
+    // Skip to controls section
+  } else if (hasCachedSubtitles) {
     console.log('DISPLAY LOGIC: We have cached subtitles, deciding which button to show...');
     // If subtitles are cached and currently displaying/visible
     if (isDisplayingSubtitles && isSubtitleVisible) {
@@ -1689,6 +1824,11 @@ function addTranslateButton() {
     
     if (shouldShowRefreshButton) {
       console.log('BUTTON CHOICE: Adding refresh button - translation is incomplete');
+      
+      // Create container for button and status
+      const refreshContainer = document.createElement('div');
+      refreshContainer.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 6px;';
+      
       const refreshButton = document.createElement('button');
       refreshButton.textContent = 'دریافت ادامه زیرنویس';
       refreshButton.className = 'subtitle-refresh-button';
@@ -1701,44 +1841,48 @@ function addTranslateButton() {
         refreshButton.textContent = 'در حال دریافت ادامه...';
         refreshButton.style.opacity = '0.6';
         refreshButton.style.cursor = 'not-allowed';
+        
+        // Show translation in progress status in progress bar title
+        const progress = calculateVideoTranslationProgress();
+        updatePersistentProgressBar(
+          progress.percentage,
+          progress.status,
+          'در حال دریافت ترجمه'
+        );
+      } else {
+        // Show normal status in progress bar instead of button area
+        const progress = calculateVideoTranslationProgress();
+        // Only show "بخشی از زیرنویس ترجمه شده است" when progress is less than 100%
+        const title = progress.percentage < 100 ? 'بخشی از زیرنویس ترجمه شده است' : 'ترجمه کامل';
+        updatePersistentProgressBar(
+          progress.percentage,
+          progress.status,
+          title
+        );
+        
+        // Update original language status as well
+        updateOriginalLanguageStatus();
       }
       
-      buttonContainer.appendChild(refreshButton);
+      refreshContainer.appendChild(refreshButton);
+      buttonContainer.appendChild(refreshContainer);
     } else {
       console.log('BUTTON CHOICE: Not adding refresh button - translation is complete');
     }
     
-    // Add clear subtitles button (red button at the bottom)
-    const clearButton = document.createElement('button');
-    clearButton.textContent = 'نمایش زیرنویس ذخیره شده';
-    clearButton.className = 'subtitle-show-saved-button';
-    clearButton.style.backgroundColor = '#2196F3';
-    clearButton.style.color = 'white';
-    clearButton.style.border = 'none';
-    clearButton.style.borderRadius = '4px';
-    clearButton.style.fontSize = '12px';
-    clearButton.style.cursor = 'pointer';
-    clearButton.style.direction = 'rtl';
-    clearButton.style.transition = 'background-color 0.2s';
-    clearButton.style.padding = '6px 10px';
-    clearButton.style.width = '100%';
-    clearButton.style.fontFamily = "'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif";
-    clearButton.style.marginTop = '0px';
-    clearButton.style.marginBottom = '6px';
-    clearButton.addEventListener('click', showSavedSubtitlesViewer);
-    clearButton.addEventListener('mouseenter', () => {
-      clearButton.style.backgroundColor = '#1976D2';
-    });
-    clearButton.addEventListener('mouseleave', () => {
-      clearButton.style.backgroundColor = '#2196F3';
-    });
-    buttonContainer.appendChild(clearButton);
+
   } else {
     console.log('BUTTON CHOICE: No cached subtitles, showing translate button');
     
     // Check if there's incomplete translation progress (but only if there are some saved subtitles)
     const hasIncomplete = hasIncompleteTranslation();
-    const hasSavedSubtitles = currentVideoId && loadSubtitlesFromStorage(currentVideoId) && loadSubtitlesFromStorage(currentVideoId).length > 0;
+    // IMPORTANT: Use consistent detection - if we got here, hasCachedSubtitles was false
+    // But we should double-check for saved subtitles again because progress might exist
+    const savedSubtitlesForProgress = currentVideoId ? loadSubtitlesFromStorage(currentVideoId) : null;
+    const hasSavedSubtitles = savedSubtitlesForProgress && savedSubtitlesForProgress.length > 0;
+    
+    console.log(`[BUTTON_DEBUG] In else block - hasIncomplete: ${hasIncomplete}, hasSavedSubtitles: ${hasSavedSubtitles}`);
+    console.log(`[BUTTON_DEBUG] Saved subtitles count: ${savedSubtitlesForProgress ? savedSubtitlesForProgress.length : 0}`);
     
     // No cached subtitles - show translate button
     const translateButton = document.createElement('button');
@@ -1749,7 +1893,17 @@ function addTranslateButton() {
       translateButton.title = 'ادامه ترجمه از جایی که متوقف شده';
     } else {
       // Show regular translation button for videos with no subtitles or incomplete progress only
-    translateButton.textContent = 'دریافت و ترجمه زیرنویس';
+      console.log('[DEBUG] Setting translate button text...');
+      translateButton.textContent = getTranslateButtonText();
+      console.log('[DEBUG] Translate button text set to:', translateButton.textContent);
+      
+      // Set appropriate title based on status
+      const currentVideoId = getCurrentVideoId();
+      if (hasOriginalLanguageSubtitles(currentVideoId)) {
+        translateButton.title = 'زیرنویس اصلی قبلاً دریافت شده - فقط ترجمه انجام می‌شود';
+      } else {
+        translateButton.title = 'دریافت زیرنویس از سرور و ترجمه آن';
+      }
     translateButton.className = 'subtitle-translate-button orange';
     }
     translateButton.addEventListener('click', translateSubtitlesWithOpenRouter);
@@ -1778,20 +1932,75 @@ function addTranslateButton() {
   }
   
   // Add subtitle position controls at the end (always visible)
+  console.log('[UI] Creating subtitle position controls...');
   const positionControls = createSubtitlePositionControls();
+  console.log('[UI] Position controls created:', positionControls ? 'SUCCESS' : 'FAILED');
   buttonContainer.appendChild(positionControls);
   
-  // Add original language controls (always visible)
-  const originalLanguageControls = createOriginalLanguageControls();
-  buttonContainer.appendChild(originalLanguageControls);
+  // Add subtitle font size controls (always visible)
+  console.log('[UI] Creating subtitle font size controls...');
+  const fontSizeControls = createSubtitleFontSizeControls();
+  console.log('[UI] Font size controls created:', fontSizeControls ? 'SUCCESS' : 'FAILED');
+  buttonContainer.appendChild(fontSizeControls);
   
-  // Add original language position controls (always visible)
+  // Create a container for language and display controls to show them side by side
+  const languageDisplayContainer = document.createElement('div');
+  languageDisplayContainer.style.cssText = `
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    margin: 4px 0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  `;
+  
+  // Add original language controls and previous/next controls side by side
+  const originalLanguageControls = createOriginalLanguageControls();
+  const previousNextControls = createPreviousNextSubtitlesControls();
   const originalPositionControls = createOriginalPositionControls();
   buttonContainer.appendChild(originalPositionControls);
+  languageDisplayContainer.appendChild(originalLanguageControls);
+  languageDisplayContainer.appendChild(previousNextControls);
+  buttonContainer.appendChild(languageDisplayContainer);
   
-  // Add previous/next subtitles controls (always visible)
-  const previousNextControls = createPreviousNextSubtitlesControls();
-  buttonContainer.appendChild(previousNextControls);
+  // Add original language position controls (always visible)
+
+  // Always add "Show Saved Subtitles" button if any subtitles exist 
+  if (currentVideoId && hasAnySavedSubtitles(currentVideoId)) {
+    console.log('[SAVED_BUTTON] Adding saved subtitles viewer button');
+    const savedSubtitlesButton = document.createElement('button');
+    savedSubtitlesButton.textContent = 'نمایش زیرنویس ذخیره شده';
+    savedSubtitlesButton.className = 'subtitle-show-saved-button';
+    savedSubtitlesButton.style.backgroundColor = '#2196F3';
+    savedSubtitlesButton.style.color = 'white';
+    savedSubtitlesButton.style.border = 'none';
+    savedSubtitlesButton.style.borderRadius = '4px';
+    savedSubtitlesButton.style.fontSize = '12px';
+    savedSubtitlesButton.style.cursor = 'pointer';
+    savedSubtitlesButton.style.direction = 'rtl';
+    savedSubtitlesButton.style.transition = 'background-color 0.2s';
+    savedSubtitlesButton.style.padding = '6px 10px';
+    savedSubtitlesButton.style.width = '100%';
+    savedSubtitlesButton.style.fontFamily = "'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif";
+    savedSubtitlesButton.style.marginTop = '6px';
+    savedSubtitlesButton.style.marginBottom = '6px';
+    savedSubtitlesButton.addEventListener('click', showSavedSubtitlesViewer);
+    savedSubtitlesButton.addEventListener('mouseenter', () => {
+      savedSubtitlesButton.style.backgroundColor = '#1976D2';
+    });
+    savedSubtitlesButton.addEventListener('mouseleave', () => {
+      savedSubtitlesButton.style.backgroundColor = '#2196F3';
+    });
+    buttonContainer.appendChild(savedSubtitlesButton);
+  } else {
+    console.log('[SAVED_BUTTON] No saved subtitles found - not adding button');
+  }
+
+  // Update original language status at the end
+  updateOriginalLanguageStatus();
   
   console.log('--- END addTranslateButton ---');
 }
@@ -1890,17 +2099,8 @@ function toggleSubtitleDisplay(show) {
         saveSubtitlesToStorage(currentVideoId, translatedSubtitles);
       }
       
-      // Only update the translate button content, don't rebuild the entire UI
-      const settingsContent = document.getElementById('subtitle-settings-content');
-      if (settingsContent) {
-        // Just refresh the button content
-        const buttonContainer = settingsContent.querySelector('.subtitle-button-container');
-        if (buttonContainer) {
-          // Remove existing buttons and recreate them
-          buttonContainer.innerHTML = '';
-          addTranslateButton();
-        }
-      }
+      // Don't rebuild the entire UI since addSavedSubtitlesButtonIfNeeded already added the correct buttons
+      console.log('[SUBTITLE DISPLAY] Skipping button rebuild since subtitle display is active and buttons are already in correct state');
       console.log('[SUBTITLE DISPLAY] Updated buttons after toggling subtitle display to', show);
     }, 600);
   } else {
@@ -1913,17 +2113,15 @@ function toggleSubtitleDisplay(show) {
     // Reset isSubtitleVisible as well
     isSubtitleVisible = false;
     
-    // Reset content
+    // Reset content  
     setTimeout(() => {
-      // Only update the translate button content, don't rebuild the entire UI
+      // Rebuild UI when hiding subtitles to show the correct buttons
       const settingsContent = document.getElementById('subtitle-settings-content');
       if (settingsContent) {
-        // Just refresh the button content
         const buttonContainer = settingsContent.querySelector('.subtitle-button-container');
         if (buttonContainer) {
-          // Remove existing buttons and recreate them
           buttonContainer.innerHTML = '';
-    addTranslateButton();
+          addTranslateButton();
         }
       }
       console.log('[SUBTITLE DISPLAY] Updated buttons after toggling subtitle display to', show);
@@ -1934,10 +2132,14 @@ function toggleSubtitleDisplay(show) {
 
 // Function to extract and translate YouTube subtitles with Gemini
 async function translateSubtitlesWithOpenRouter() {
-  console.log('[TRANSLATE] Starting subtitle translation...');
+  console.log('[TRANSLATE] ========== Starting subtitle translation ==========');
+  console.log('[TRANSLATE] translateSubtitlesWithOpenRouter function called');
+  console.log('[TRANSLATE] Current video ID:', currentVideoId);
+  console.log('[TRANSLATE] Translation in progress flag before:', isTranslationInProgress);
   
   // Set translation in progress flag
   isTranslationInProgress = true;
+  console.log('[TRANSLATE] Translation in progress flag set to:', isTranslationInProgress);
   
   try {
     // Ensure we have the current video ID
@@ -1993,7 +2195,7 @@ async function translateSubtitlesWithOpenRouter() {
     
     if (translateButton && (!existingSavedSubtitles || existingSavedSubtitles.length === 0)) {
       // Only disable button if no saved subtitles exist
-      translateButton.textContent = 'در حال ترجمه زیرنویس...';
+      translateButton.textContent = 'در حال دریافت و ترجمه ...';
       translateButton.disabled = true;
       translateButton.classList.add('loading');
       translateButton.style.opacity = '0.6';
@@ -2009,7 +2211,7 @@ async function translateSubtitlesWithOpenRouter() {
       currentVideoId = urlVideoId; // Update to the correct ID
     }
     
-    // Extract subtitles
+          // Extract subtitles (extractYouTubeSubtitles will check cache first, then fetch if needed)
     console.log('[TRANSLATE] Extracting subtitles for video ID:', currentVideoId);
     const extractStartTime = performance.now();
     const subtitles = await extractYouTubeSubtitles(currentVideoId);
@@ -2072,17 +2274,20 @@ async function translateSubtitlesWithOpenRouter() {
     
     // Show which API is being used
     const apiInfo = getTranslationApiInfo();
+    console.log('[TRANSLATE] API Info:', apiInfo);
     
     // Validate API key before starting
+    console.log('[TRANSLATE] Validating API key for:', apiInfo.api);
     if (apiInfo.api === 'openrouter') {
       const openrouterKey = localStorage.getItem('openrouter_api_key');
+      console.log('[TRANSLATE] OpenRouter API key exists:', !!openrouterKey);
       if (!openrouterKey) {
         showNotification('⚠️ کلید OpenRouter API تنظیم نشده - لطفاً از تنظیمات کلید API را وارد کنید');
         
         // Reset button state when API key is missing
     const translateButton = document.querySelector('.subtitle-translate-button');
     if (translateButton) {
-      translateButton.textContent = 'دریافت و ترجمه زیرنویس';
+      translateButton.textContent = getTranslateButtonText();
       translateButton.disabled = false;
           translateButton.classList.remove('loading');
           translateButton.style.opacity = '1';
@@ -2096,13 +2301,14 @@ async function translateSubtitlesWithOpenRouter() {
       }
     } else if (apiInfo.api === 'gemini') {
       const geminiKey = localStorage.getItem('geminiApiKey');
+      console.log('[TRANSLATE] Gemini API key exists:', !!geminiKey);
       if (!geminiKey) {
         showNotification('⚠️ کلید Gemini API تنظیم نشده - لطفاً از تنظیمات کلید API را وارد کنید');
         
         // Reset button state when API key is missing
         const translateButton = document.querySelector('.subtitle-translate-button');
         if (translateButton) {
-          translateButton.textContent = 'دریافت و ترجمه زیرنویس';
+          translateButton.textContent = getTranslateButtonText();
           translateButton.disabled = false;
           translateButton.classList.remove('loading');
           translateButton.style.opacity = '1';
@@ -2117,12 +2323,14 @@ async function translateSubtitlesWithOpenRouter() {
     }
     
     showNotification(`🚀 در حال ترجمه زیرنویس با ${apiInfo.displayName} (${apiInfo.model})...`);
+    console.log('[TRANSLATE] About to start chunked translation with', filteredSubtitles.length, 'subtitles');
     
     let parsedSubtitles = [];
     let translationSuccess = false;
     
     try {
       // Use chunked translation
+      console.log('[TRANSLATE] Calling translateSubtitlesInChunks...');
       parsedSubtitles = await translateSubtitlesInChunks(filteredSubtitles);
       
       console.log(`[TRANSLATE] Chunked translation completed: ${parsedSubtitles.length} subtitles`);
@@ -2149,7 +2357,7 @@ async function translateSubtitlesWithOpenRouter() {
       
       if (translateButton && (!existingSavedSubtitles || existingSavedSubtitles.length === 0)) {
         // Only reset button if it was disabled (no saved subtitles)
-      translateButton.textContent = 'دریافت و ترجمه زیرنویس';
+      translateButton.textContent = getTranslateButtonText();
       translateButton.disabled = false;
         translateButton.classList.remove('loading');
         translateButton.style.opacity = '1';
@@ -2278,14 +2486,17 @@ async function translateSubtitlesWithOpenRouter() {
       showNotification('ترجمه زیرنویس با موفقیت انجام شد');
     }
     
+    // Reset translation in progress flag first
+    isTranslationInProgress = false;
+    
+    // Update UI to show completed translation state
+    updateUIForTranslationEnd();
+    
     // Immediately update UI to show subtitle display button
     setTimeout(() => {
       addTranslateButton(); // This will show the "Show Persian Subtitles" button
       showNotification('زیرنویس‌ها ترجمه شدند و به صورت خودکار فعال شدند!');
     }, 100); // Reduced delay for immediate response
-    
-    // Reset translation in progress flag
-    isTranslationInProgress = false;
     
     // Also automatically display subtitles
     toggleSubtitleDisplay(true);
@@ -2294,6 +2505,9 @@ async function translateSubtitlesWithOpenRouter() {
     
     // Reset translation in progress flag
     isTranslationInProgress = false;
+    
+    // Update UI to show error state
+    updateUIForTranslationEnd();
     
     // No need to hide progress bar since we're using persistent progress bar
     // hideProgressBar();
@@ -2310,7 +2524,7 @@ async function translateSubtitlesWithOpenRouter() {
     // Reset button state on error
     const translateButton = document.querySelector('.subtitle-translate-button');
     if (translateButton) {
-      translateButton.textContent = 'دریافت و ترجمه زیرنویس';
+      translateButton.textContent = getTranslateButtonText();
       translateButton.disabled = false;
       translateButton.classList.remove('loading');
       translateButton.classList.remove('orange');
@@ -2475,7 +2689,7 @@ function createPersistentProgressBar() {
   const progressStatus = document.createElement('div');
   progressStatus.className = 'persistent-progress-status';
   progressStatus.id = 'persistent-progress-status';
-  progressStatus.textContent = 'ترجمه نشده';
+  progressStatus.textContent = 'زیرنویس دریافت نشده';
   
   // Assemble progress bar
   progressBarContainer.appendChild(progressBar);
@@ -2561,6 +2775,11 @@ function calculateVideoTranslationProgress() {
   // Check for completed translation
   const savedSubtitles = loadSubtitlesFromStorage(currentVideoId);
   if (savedSubtitles && savedSubtitles.length > 0) {
+    // Check if translation is marked as complete (no incomplete translation progress)
+    const progressKey = `translation_progress_${currentVideoId}`;
+    const savedProgress = localStorage.getItem(progressKey);
+    const isTranslationComplete = !savedProgress; // If no progress data, it means translation was completed and cleaned up
+    
     // Try to get total subtitle count from localStorage or estimate
     let totalSubtitles = savedSubtitles.length; // Default fallback
     
@@ -2572,6 +2791,15 @@ function calculateVideoTranslationProgress() {
     } else if (videoDuration) {
       // Estimate total subtitles based on video duration (assuming ~3 seconds per subtitle)
       totalSubtitles = Math.ceil(videoDuration / 3);
+    }
+    
+    // If translation is complete and we have reasonable coverage, show 100%
+    if (isTranslationComplete && savedSubtitles.length > 0) {
+      return { 
+        percentage: 100, 
+        status: 'ترجمه کامل انجام شد', 
+        hasTranslation: true 
+      };
     }
     
     if (!videoDuration) {
@@ -2607,6 +2835,16 @@ function calculateVideoTranslationProgress() {
     if (savedProgress) {
       const progressData = JSON.parse(savedProgress);
       const translatedCount = progressData.translatedSubtitles ? progressData.translatedSubtitles.length : 0;
+      
+      console.log(`[PROGRESS_DEBUG] Found progress data: completedChunks=${progressData.completedChunks}, totalChunks=${progressData.totalChunks}, translatedCount=${translatedCount}`);
+      
+      // BUGFIX: If we have progress data but no actual translated subtitles in storage,
+      // and no translated subtitles in progress data, then this is stale progress data
+      if (translatedCount === 0) {
+        console.log(`[PROGRESS_DEBUG] No translated subtitles found in progress data, clearing stale progress`);
+        localStorage.removeItem(progressKey);
+        return { percentage: 0, status: 'زیرنویس دریافت نشده', hasTranslation: false };
+      }
       
       // Try to get total subtitle count
       let totalSubtitles = translatedCount; // Default fallback
@@ -2646,7 +2884,7 @@ function calculateVideoTranslationProgress() {
     console.warn('[PROGRESS] Error calculating progress:', e);
   }
   
-  return { percentage: 0, status: 'ترجمه نشده', hasTranslation: false };
+  return { percentage: 0, status: 'زیرنویس دریافت نشده', hasTranslation: false };
 }
 
 // Update persistent progress display
@@ -2654,13 +2892,19 @@ function updatePersistentProgress() {
   const progress = calculateVideoTranslationProgress();
   
   let title = 'پیشرفت ترجمه ویدیو';
-  if (progress.isIncomplete) {
-    title = 'ترجمه ناتمام';
-  } else if (progress.hasTranslation) {
+  if (progress.hasTranslation) {
+    // If translation is complete (100%), use "ترجمه کامل"
+    if (progress.percentage >= 100) {
     title = 'ترجمه کامل';
+    } else {
+      title = 'بخشی از زیرنویس ترجمه شده است';
+    }
   }
   
   updatePersistentProgressBar(progress.percentage, progress.status, title);
+  
+  // Update original language status as well
+  updateOriginalLanguageStatus();
 }
 
 // Update persistent progress bar during active translation
@@ -2672,7 +2916,7 @@ function updatePersistentProgressDuringTranslation(currentTranslatedSubtitles) {
   const videoDuration = getVideoDuration();
   if (!videoDuration) {
     // Fallback to showing subtitle count if video duration unavailable
-    updatePersistentProgressBar(50, `${currentTranslatedSubtitles.length} زیرنویس در حال ترجمه...`, 'در حال ترجمه');
+    updatePersistentProgressBar(50, `${currentTranslatedSubtitles.length} زیرنویس در حال ترجمه...`, 'در حال دریافت ترجمه');
       return;
     }
     
@@ -2690,7 +2934,7 @@ function updatePersistentProgressDuringTranslation(currentTranslatedSubtitles) {
   
   const status = `${currentTranslatedSubtitles.length} زیرنویس (${timeRange})`;
   
-  updatePersistentProgressBar(percentage, status, 'در حال ترجمه');
+  updatePersistentProgressBar(percentage, status, 'در حال دریافت ترجمه');
 }
 
 // Split subtitles into 5-minute chunks
@@ -2828,7 +3072,7 @@ async function translateSubtitlesInChunks(subtitles) {
   if (startFromChunk >= chunks.length) {
     console.log('[CHUNKS] Translation is already complete');
     showNotification('ترجمه این ویدیو قبلاً تکمیل شده است');
-    updatePersistentProgressBar(100, 'ترجمه کامل شده', 'ترجمه کامل');
+    updatePersistentProgressBar(100, 'ترجمه کامل انجام شد', 'ترجمه کامل');
     return translatedSubtitles; // Return existing translated subtitles
   }
   
@@ -2842,11 +3086,11 @@ async function translateSubtitlesInChunks(subtitles) {
     const savedSubtitles = loadSubtitlesFromStorage(currentVideoId);
     const currentCount = savedSubtitles ? savedSubtitles.length : 0;
     const totalSubtitles = localStorage.getItem(`original_subtitles_count_${currentVideoId}`) || currentCount;
-    updatePersistentProgressBar(initialProgress, `${currentCount} زیرنویس از ${totalSubtitles} ذخیره شده`, 'در حال ترجمه');
+    updatePersistentProgressBar(initialProgress, `${currentCount} زیرنویس از ${totalSubtitles} ذخیره شده`, 'در حال دریافت ترجمه');
   } else {
     // Starting fresh translation
     const totalSubtitles = localStorage.getItem(`original_subtitles_count_${currentVideoId}`) || subtitles.length;
-    updatePersistentProgressBar(0, `0 زیرنویس از ${totalSubtitles} ذخیره شده`, 'در حال ترجمه');
+    updatePersistentProgressBar(0, `0 زیرنویس از ${totalSubtitles} ذخیره شده`, 'در حال دریافت ترجمه');
   }
   
   const translatedChunks = [...existingTranslatedChunks];
@@ -2863,7 +3107,7 @@ async function translateSubtitlesInChunks(subtitles) {
       const currentSavedSubtitles = loadSubtitlesFromStorage(currentVideoId) || [];
       const totalSubtitles = localStorage.getItem(`original_subtitles_count_${currentVideoId}`) || subtitles.length;
       const progressPercentage = (i / chunks.length) * 100;
-      updatePersistentProgressBar(progressPercentage, `${currentSavedSubtitles.length} زیرنویس از ${totalSubtitles} ذخیره شده`, `در حال ترجمه`);
+      updatePersistentProgressBar(progressPercentage, `${currentSavedSubtitles.length} زیرنویس از ${totalSubtitles} ذخیره شده`, `در حال دریافت ترجمه`);
       
       try {
         // Convert chunk to appropriate format based on API
@@ -2930,14 +3174,30 @@ async function translateSubtitlesInChunks(subtitles) {
         const mergedSubtitles = mergeSubtitles(existingSubtitles, currentChunkSubtitles);
         
         // Update global variable and save to storage
+        console.log(`[CHUNKS] About to save ${mergedSubtitles.length} subtitles for video ${currentVideoId}`);
         translatedSubtitles = [...mergedSubtitles];
-        saveSubtitlesToStorage(currentVideoId, translatedSubtitles);
+        const saveResult = saveSubtitlesToStorage(currentVideoId, translatedSubtitles);
+        console.log(`[CHUNKS] Save result: ${saveResult ? 'SUCCESS' : 'FAILED'}`);
+        
+        // Verify the save by loading back
+        const verifyLoad = loadSubtitlesFromStorage(currentVideoId);
+        console.log(`[CHUNKS] Verification - loaded back ${verifyLoad ? verifyLoad.length : 0} subtitles`);
         
         console.log(`[CHUNKS] Saved ${mergedSubtitles.length} total subtitles after chunk ${chunkNumber}`);
         
         // Update UI to show subtitle display button after each chunk completion
         setTimeout(() => {
-          addTranslateButton(); // This will show the "نمایش زیرنویس فارسی" button
+          console.log(`[CHUNKS] ========== About to force add button after chunk ${chunkNumber} ==========`);
+          console.log(`[CHUNKS] translatedSubtitles.length after save:`, translatedSubtitles.length);
+          console.log(`[CHUNKS] mergedSubtitles.length:`, mergedSubtitles.length);
+          console.log(`[CHUNKS] currentVideoId:`, currentVideoId);
+          
+          addSavedSubtitlesButtonIfNeeded(); // Force show saved subtitles button
+          
+          // Enable saved subtitles button after first successful translation
+          if (!firstChunkCompleted) {
+            enableSavedSubtitlesButton();
+          }
           
           // Show notification about available subtitles
           if (!firstChunkCompleted) {
@@ -2945,6 +3205,8 @@ async function translateSubtitlesInChunks(subtitles) {
   } else {
             showNotification(`بخش ${chunkNumber} ترجمه شد - زیرنویس‌ها به‌روزرسانی شدند!`);
           }
+          
+          console.log(`[CHUNKS] ========== Completed UI update after chunk ${chunkNumber} ==========`);
         }, 100); // Reduced delay for immediate response
         
                  // Enable subtitle display after first chunk is completed
@@ -3027,7 +3289,7 @@ async function translateSubtitlesInChunks(subtitles) {
      // Final progress update
      const finalSavedSubtitles = loadSubtitlesFromStorage(currentVideoId) || [];
      const totalSubtitles = localStorage.getItem(`original_subtitles_count_${currentVideoId}`) || subtitles.length;
-     updatePersistentProgressBar(100, `${finalSavedSubtitles.length} زیرنویس از ${totalSubtitles} ذخیره شده`, `ترجمه کامل`);
+     updatePersistentProgressBar(100, 'ترجمه کامل انجام شد', `ترجمه کامل`);
     
     console.log(`[CHUNKS] All chunks translated successfully. Total: ${translatedChunks.length} subtitles`);
     
@@ -3417,10 +3679,134 @@ function parseTimeToSeconds(timeStr) {
 }
 
 // Clear saved subtitles
-function clearSavedSubtitles() {
+// Clear only original subtitles (not translated)
+function clearOriginalSubtitles() {
+  console.log('[CLEAR_ORIGINAL] Starting to clear original subtitles');
+  
   // Show confirmation dialog
-  if (confirm('آیا از پاک کردن زیرنویس ذخیره شده این ویدیو اطمینان دارید؟')) {
+  if (confirm('آیا از پاک کردن زیرنویس اصلی این ویدیو اطمینان دارید؟ (ترجمه حفظ می‌شود)')) {
     if (!currentVideoId) {
+      console.log('[CLEAR_ORIGINAL] ERROR: No video ID found');
+      showNotification('خطا: شناسه ویدیو یافت نشد');
+      return;
+    }
+    
+    try {
+      // Clear only original language subtitles
+      const originalLanguageKey = `originalLanguage_${currentVideoId}`;
+      localStorage.removeItem(originalLanguageKey);
+      console.log(`[CLEAR_ORIGINAL] Removed original language subtitles: ${originalLanguageKey}`);
+      
+      // DON'T clear translated subtitles or progress - keep them
+      console.log(`[CLEAR_ORIGINAL] Keeping translated subtitles and progress for video: ${currentVideoId}`);
+      
+      // Update progress bar and status based on what's left
+      const hasTranslated = loadSubtitlesFromStorage(currentVideoId) && loadSubtitlesFromStorage(currentVideoId).length > 0;
+      if (hasTranslated) {
+        // Keep current progress since translated subtitles exist
+        const progress = calculateVideoTranslationProgress();
+        updatePersistentProgressBar(progress.percentage, progress.status, progress.percentage < 100 ? 'بخشی از زیرنویس ترجمه شده است' : 'ترجمه کامل');
+      } else {
+        updatePersistentProgressBar(0, 'زیرنویس دریافت نشده', 'پیشرفت ترجمه ویدیو');
+      }
+      
+      // Update original language status
+      setTimeout(() => {
+        updateOriginalLanguageStatus();
+        // Also update button text
+        const translateButton = document.querySelector('.subtitle-translate-button');
+        if (translateButton && !translateButton.disabled) {
+          translateButton.textContent = getTranslateButtonText();
+        }
+        // Refresh the entire UI
+        addTranslateButton();
+      }, 100);
+      
+      console.log('[CLEAR_ORIGINAL] Successfully cleared original subtitles');
+      showNotification('زیرنویس اصلی پاک شد (ترجمه حفظ شد)');
+    } catch (error) {
+      console.error('[CLEAR_ORIGINAL] Error clearing original subtitles:', error);
+      showNotification('خطا در پاک کردن زیرنویس اصلی: ' + error.message);
+    }
+  }
+}
+
+// Clear only translated subtitles (not original)
+function clearTranslatedSubtitles() {
+  console.log('[CLEAR_TRANSLATED] Starting to clear translated subtitles');
+  
+  // Show confirmation dialog
+  if (confirm('آیا از پاک کردن ترجمه زیرنویس این ویدیو اطمینان دارید؟ (زیرنویس اصلی حفظ می‌شود)')) {
+    if (!currentVideoId) {
+      console.log('[CLEAR_TRANSLATED] ERROR: No video ID found');
+      showNotification('خطا: شناسه ویدیو یافت نشد');
+      return;
+    }
+    
+    try {
+      // Clear only translated subtitles for current video
+      const storageKey = `youtube_subtitles_${currentVideoId}`;
+      localStorage.removeItem(storageKey);
+      console.log(`[CLEAR_TRANSLATED] Removed translated subtitles: ${storageKey}`);
+      
+      // Also check for backup key
+      const backupKey = `youtube_subtitles_backup_${currentVideoId}`;
+      localStorage.removeItem(backupKey);
+      console.log(`[CLEAR_TRANSLATED] Removed backup subtitles: ${backupKey}`);
+      
+      // Clear translation progress as well
+      const progressKey = `translation_progress_${currentVideoId}`;
+      localStorage.removeItem(progressKey);
+      console.log(`[CLEAR_TRANSLATED] Removed translation progress: ${progressKey}`);
+      
+      // DON'T clear original language subtitles - keep them
+      console.log(`[CLEAR_TRANSLATED] Keeping original language subtitles for video: ${currentVideoId}`);
+      
+      // Reset UI state for translated subtitles only
+      isDisplayingSubtitles = false;
+      isSubtitleVisible = false;
+      translatedSubtitles = [];
+      
+      // Remove subtitle overlay
+      removeExistingOverlay();
+      
+      // Update progress bar based on what's left
+      const hasOriginal = hasOriginalLanguageSubtitles(currentVideoId);
+      if (hasOriginal) {
+        updatePersistentProgressBar(0, 'زیرنویس اصلی موجود است', 'پیشرفت ترجمه ویدیو');
+      } else {
+        updatePersistentProgressBar(0, 'زیرنویس دریافت نشده', 'پیشرفت ترجمه ویدیو');
+      }
+      
+      // Update original language status
+      setTimeout(() => {
+        updateOriginalLanguageStatus();
+        // Also update button text
+        const translateButton = document.querySelector('.subtitle-translate-button');
+        if (translateButton && !translateButton.disabled) {
+          translateButton.textContent = getTranslateButtonText();
+        }
+        // Refresh the entire UI
+        addTranslateButton();
+      }, 100);
+      
+      console.log('[CLEAR_TRANSLATED] Successfully cleared translated subtitles');
+      showNotification('ترجمه زیرنویس پاک شد (زیرنویس اصلی حفظ شد)');
+    } catch (error) {
+      console.error('[CLEAR_TRANSLATED] Error clearing translated subtitles:', error);
+      showNotification('خطا در پاک کردن ترجمه: ' + error.message);
+    }
+  }
+}
+
+// Clear all subtitles (both translated and original)
+function clearSavedSubtitles() {
+  console.log('[CLEAR_ALL] Starting to clear all subtitles');
+  
+  // Show confirmation dialog
+  if (confirm('آیا از پاک کردن تمام زیرنویس‌های ذخیره شده این ویدیو اطمینان دارید؟ (شامل زیرنویس اصلی و ترجمه)')) {
+    if (!currentVideoId) {
+      console.log('[CLEAR_ALL] ERROR: No video ID found');
       showNotification('خطا: شناسه ویدیو یافت نشد');
       return;
     }
@@ -3429,16 +3815,22 @@ function clearSavedSubtitles() {
       // Clear saved subtitles for current video
       const storageKey = `youtube_subtitles_${currentVideoId}`;
       localStorage.removeItem(storageKey);
+      console.log(`[CLEAR_ALL] Removed translated subtitles: ${storageKey}`);
       
       // Also check for backup key
       const backupKey = `youtube_subtitles_backup_${currentVideoId}`;
       localStorage.removeItem(backupKey);
+      console.log(`[CLEAR_ALL] Removed backup subtitles: ${backupKey}`);
       
       // Clear translation progress as well
       const progressKey = `translation_progress_${currentVideoId}`;
       localStorage.removeItem(progressKey);
+      console.log(`[CLEAR_ALL] Removed translation progress: ${progressKey}`);
       
-      console.log(`[CLEAR] Cleared saved subtitles and progress for video: ${currentVideoId}`);
+      // Clear original language subtitles as well
+      const originalLanguageKey = `originalLanguage_${currentVideoId}`;
+      localStorage.removeItem(originalLanguageKey);
+      console.log(`[CLEAR_ALL] Removed original language subtitles: ${originalLanguageKey}`);
       
       // Reset UI state
       isDisplayingSubtitles = false;
@@ -3449,18 +3841,24 @@ function clearSavedSubtitles() {
       removeExistingOverlay();
       
       // Reset progress bar to zero
-      updatePersistentProgressBar(0, 'ترجمه نشده', 'پیشرفت ترجمه ویدیو');
+      updatePersistentProgressBar(0, 'زیرنویس دریافت نشده', 'پیشرفت ترجمه ویدیو');
       
-      // Rebuild UI to show translate button
-      removeSettingsBox();
-      const settingsContent = createSettingsBox();
-      if (settingsContent) {
-        setTimeout(() => addTranslateButton(), 300);
-      }
+      // Update original language status
+      setTimeout(() => {
+        updateOriginalLanguageStatus();
+        // Also update button text
+        const translateButton = document.querySelector('.subtitle-translate-button');
+        if (translateButton && !translateButton.disabled) {
+          translateButton.textContent = getTranslateButtonText();
+        }
+        // Refresh the entire UI
+        addTranslateButton();
+      }, 100);
       
-      showNotification('زیرنویس ذخیره شده این ویدیو پاک شد');
+      console.log('[CLEAR_ALL] Successfully cleared all subtitles');
+      showNotification('تمام زیرنویس‌های ذخیره شده این ویدیو پاک شد');
     } catch (error) {
-      console.error('[CLEAR] Error clearing saved subtitles:', error);
+      console.error('[CLEAR_ALL] Error clearing saved subtitles:', error);
       showNotification('خطا در پاک کردن زیرنویس: ' + error.message);
     }
   }
@@ -3469,18 +3867,36 @@ function clearSavedSubtitles() {
 // Show saved subtitles viewer window
 function showSavedSubtitlesViewer() {
   console.log('[VIEWER] Opening saved subtitles viewer');
+  console.log('[VIEWER] Current video ID:', currentVideoId);
   
   if (!currentVideoId) {
+    console.log('[VIEWER] ERROR: No video ID found');
     showNotification('خطا: شناسه ویدیو یافت نشد');
     return;
   }
   
-  // Load saved subtitles
+  // Load saved subtitles (translated)
   const savedSubtitles = loadSubtitlesFromStorage(currentVideoId);
-  if (!savedSubtitles || savedSubtitles.length === 0) {
+  console.log('[VIEWER] Translated subtitles found:', savedSubtitles ? savedSubtitles.length : 0);
+  
+  // Load original subtitles
+  const originalSubtitlesData = getOriginalLanguageSubtitles(currentVideoId);
+  console.log('[VIEWER] Original subtitles content found:', !!originalSubtitlesData);
+  
+  // Check if we have ANY subtitles (translated or original)
+  const hasTranslated = savedSubtitles && savedSubtitles.length > 0;
+  const hasOriginal = originalSubtitlesData && originalSubtitlesData.trim().length > 0;
+  
+  console.log('[VIEWER] Has translated:', hasTranslated);
+  console.log('[VIEWER] Has original:', hasOriginal);
+  
+  if (!hasTranslated && !hasOriginal) {
+    console.log('[VIEWER] ERROR: No subtitles found at all');
     showNotification('زیرنویس ذخیره شده‌ای برای این ویدیو یافت نشد');
     return;
   }
+  
+  console.log('[VIEWER] Proceeding to show modal with available subtitles');
   
   // Remove existing viewer if any
   const existingViewer = document.getElementById('subtitle-viewer-modal');
@@ -3525,10 +3941,20 @@ function showSavedSubtitlesViewer() {
   header.style.borderBottom = '1px solid rgba(255, 255, 255, 0.2)';
   
   const title = document.createElement('h3');
-  title.textContent = `زیرنویس ذخیره شده (${savedSubtitles.length} مورد)`;
+  // Set title based on what subtitles we have
+  let titleText = 'زیرنویس ذخیره شده';
+  if (hasTranslated && hasOriginal) {
+    titleText = `زیرنویس ذخیره شده (${savedSubtitles.length} ترجمه + اصلی)`;
+  } else if (hasTranslated) {
+    titleText = `زیرنویس ذخیره شده (${savedSubtitles.length} ترجمه)`;
+  } else if (hasOriginal) {
+    titleText = 'زیرنویس ذخیره شده (فقط اصلی)';
+  }
+  title.textContent = titleText;
   title.style.color = 'white';
   title.style.margin = '0';
   title.style.fontSize = '16px';
+  console.log('[VIEWER] Modal title set to:', titleText);
   
   const closeButton = document.createElement('button');
   closeButton.textContent = '×';
@@ -3570,9 +3996,9 @@ function showSavedSubtitlesViewer() {
     refreshButton.style.backgroundColor = '#2196F3';
   });
 
-  // Create clear button
+  // Create clear button - only show if we have translated subtitles
   const clearButton = document.createElement('button');
-  clearButton.textContent = 'پاک کردن زیرنویس';
+  clearButton.textContent = 'پاک کردن ترجمه';
   clearButton.style.backgroundColor = '#f44336';
   clearButton.style.color = 'white';
   clearButton.style.border = 'none';
@@ -3583,9 +4009,17 @@ function showSavedSubtitlesViewer() {
   clearButton.style.marginBottom = '15px';
   clearButton.style.width = '100%';
   clearButton.style.fontFamily = "'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif";
+  
+  if (!hasTranslated) {
+    clearButton.disabled = true;
+    clearButton.style.opacity = '0.5';
+    clearButton.style.cursor = 'not-allowed';
+    clearButton.title = 'زیرنویس ترجمه شده موجود نیست';
+    console.log('[VIEWER] Clear button disabled - no translated subtitles');
+  } else {
   clearButton.addEventListener('click', () => {
     modalOverlay.remove();
-    clearSavedSubtitles();
+      clearTranslatedSubtitles();
   });
   clearButton.addEventListener('mouseenter', () => {
     clearButton.style.backgroundColor = '#d32f2f';
@@ -3593,6 +4027,131 @@ function showSavedSubtitlesViewer() {
   clearButton.addEventListener('mouseleave', () => {
     clearButton.style.backgroundColor = '#f44336';
   });
+    console.log('[VIEWER] Clear button enabled - translated subtitles available');
+  }
+
+  // Create clear original button - only show if we have original subtitles but no translated subtitles
+  const clearOriginalButton = document.createElement('button');
+  clearOriginalButton.textContent = 'پاک کردن زیرنویس اصلی';
+  clearOriginalButton.style.backgroundColor = '#FF5722';
+  clearOriginalButton.style.color = 'white';
+  clearOriginalButton.style.border = 'none';
+  clearOriginalButton.style.borderRadius = '4px';
+  clearOriginalButton.style.padding = '8px 16px';
+  clearOriginalButton.style.fontSize = '14px';
+  clearOriginalButton.style.cursor = 'pointer';
+  clearOriginalButton.style.marginBottom = '15px';
+  clearOriginalButton.style.width = '100%';
+  clearOriginalButton.style.fontFamily = "'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif";
+  
+  // Only show this button if we have original subtitles but no translated subtitles
+  if (hasOriginal && !hasTranslated) {
+    clearOriginalButton.addEventListener('click', () => {
+      modalOverlay.remove();
+      clearOriginalSubtitles();
+    });
+    clearOriginalButton.addEventListener('mouseenter', () => {
+      clearOriginalButton.style.backgroundColor = '#E64A19';
+    });
+    clearOriginalButton.addEventListener('mouseleave', () => {
+      clearOriginalButton.style.backgroundColor = '#FF5722';
+    });
+    console.log('[VIEWER] Clear original button enabled - original subtitles available, no translated');
+  } else {
+    // Hide the button if conditions are not met
+    clearOriginalButton.style.display = 'none';
+    console.log('[VIEWER] Clear original button hidden - conditions not met');
+  }
+
+  // Load original language subtitles for both download and display
+  const originalSubtitlesContent = getOriginalLanguageSubtitles(currentVideoId);
+  console.log('[DOWNLOAD] Original subtitles content found:', !!originalSubtitlesContent);
+
+  // Create download buttons container
+  const downloadContainer = document.createElement('div');
+  console.log('[DOWNLOAD] Created download container');
+  downloadContainer.style.display = 'flex';
+  downloadContainer.style.gap = '10px';
+  downloadContainer.style.marginBottom = '15px';
+
+  // Create download original button
+  const downloadOriginalButton = document.createElement('button');
+  downloadOriginalButton.textContent = 'دانلود زیرنویس اصلی';
+  downloadOriginalButton.style.backgroundColor = '#FF9800';
+  downloadOriginalButton.style.color = 'white';
+  downloadOriginalButton.style.border = 'none';
+  downloadOriginalButton.style.borderRadius = '4px';
+  downloadOriginalButton.style.padding = '8px 16px';
+  downloadOriginalButton.style.fontSize = '14px';
+  downloadOriginalButton.style.cursor = 'pointer';
+  downloadOriginalButton.style.flex = '1';
+  downloadOriginalButton.style.fontFamily = "'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif";
+  
+  // Check if original subtitles exist
+  if (!hasOriginal) {
+    downloadOriginalButton.disabled = true;
+    downloadOriginalButton.style.opacity = '0.5';
+    downloadOriginalButton.style.cursor = 'not-allowed';
+    downloadOriginalButton.title = 'زیرنویس اصلی موجود نیست';
+    console.log('[VIEWER] Download original button disabled - no original subtitles');
+  } else {
+    downloadOriginalButton.addEventListener('click', () => {
+      downloadSubtitleFile(originalSubtitlesData, `${currentVideoId}_original.srt`);
+      showNotification('دانلود زیرنویس اصلی شروع شد');
+    });
+    console.log('[VIEWER] Download original button enabled - original subtitles available');
+  }
+  
+  downloadOriginalButton.addEventListener('mouseenter', () => {
+    if (!downloadOriginalButton.disabled) {
+      downloadOriginalButton.style.backgroundColor = '#F57C00';
+    }
+  });
+  downloadOriginalButton.addEventListener('mouseleave', () => {
+    if (!downloadOriginalButton.disabled) {
+      downloadOriginalButton.style.backgroundColor = '#FF9800';
+    }
+  });
+
+  // Create download translation button
+  const downloadTranslationButton = document.createElement('button');
+  downloadTranslationButton.textContent = 'دانلود ترجمه زیرنویس';
+  downloadTranslationButton.style.backgroundColor = '#4CAF50';
+  downloadTranslationButton.style.color = 'white';
+  downloadTranslationButton.style.border = 'none';
+  downloadTranslationButton.style.borderRadius = '4px';
+  downloadTranslationButton.style.padding = '8px 16px';
+  downloadTranslationButton.style.fontSize = '14px';
+  downloadTranslationButton.style.cursor = 'pointer';
+  downloadTranslationButton.style.flex = '1';
+  downloadTranslationButton.style.fontFamily = "'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif";
+  
+  // Check if translated subtitles exist
+  if (!hasTranslated) {
+    downloadTranslationButton.disabled = true;
+    downloadTranslationButton.style.opacity = '0.5';
+    downloadTranslationButton.style.cursor = 'not-allowed';
+    downloadTranslationButton.title = 'زیرنویس ترجمه شده موجود نیست';
+    console.log('[VIEWER] Download translation button disabled - no translated subtitles');
+  } else {
+    downloadTranslationButton.addEventListener('click', () => {
+      const translatedSrt = convertSubtitlesToSrt(savedSubtitles);
+      downloadSubtitleFile(translatedSrt, `${currentVideoId}_translated.srt`);
+      showNotification('دانلود ترجمه زیرنویس شروع شد');
+    });
+    downloadTranslationButton.addEventListener('mouseenter', () => {
+      downloadTranslationButton.style.backgroundColor = '#45A049';
+    });
+    downloadTranslationButton.addEventListener('mouseleave', () => {
+      downloadTranslationButton.style.backgroundColor = '#4CAF50';
+    });
+    console.log('[VIEWER] Download translation button enabled - translated subtitles available');
+  }
+
+  // Add buttons to download container
+  downloadContainer.appendChild(downloadOriginalButton);
+  downloadContainer.appendChild(downloadTranslationButton);
+  console.log('[DOWNLOAD] Added buttons to download container');
   
   // Create subtitles container with modern scroll
   const subtitlesContainer = document.createElement('div');
@@ -3627,8 +4186,25 @@ function showSavedSubtitlesViewer() {
   `;
   document.head.appendChild(scrollbarStyle);
   
+  // Load original language subtitles for subtitle matching
+  let originalSubtitles = [];
+  if (originalSubtitlesData) {
+    originalSubtitles = parseSrtToSubtitles(originalSubtitlesData);
+    console.log('[VIEWER] Parsed original subtitles:', originalSubtitles.length);
+  }
+  
+  // Determine which subtitles to display
+  let subtitlesToDisplay = [];
+  if (hasTranslated) {
+    subtitlesToDisplay = savedSubtitles;
+    console.log('[VIEWER] Displaying translated subtitles:', subtitlesToDisplay.length);
+  } else if (hasOriginal) {
+    subtitlesToDisplay = originalSubtitles;
+    console.log('[VIEWER] Displaying original subtitles as main content:', subtitlesToDisplay.length);
+  }
+  
   // Add subtitles to container
-  savedSubtitles.forEach((subtitle, index) => {
+  subtitlesToDisplay.forEach((subtitle, index) => {
     const subtitleItem = document.createElement('div');
     subtitleItem.style.marginBottom = '12px';
     subtitleItem.style.padding = '8px';
@@ -3640,16 +4216,55 @@ function showSavedSubtitlesViewer() {
     timeInfo.style.color = '#673AB7';
     timeInfo.style.fontSize = '12px';
     timeInfo.style.marginBottom = '4px';
+    timeInfo.style.direction = 'ltr';
     timeInfo.textContent = `${formatSecondsToTime(subtitle.startTime)} - ${formatSecondsToTime(subtitle.endTime)}`;
     
+    subtitleItem.appendChild(timeInfo);
+    
+    // If displaying translated subtitles, show original as secondary text
+    if (hasTranslated) {
+      // Find matching original subtitle by time
+      const matchingOriginal = originalSubtitles.find(orig => 
+        Math.abs(orig.startTime - subtitle.startTime) < 1.0
+      );
+      
+      // Add original text if found
+      if (matchingOriginal) {
+        const originalContent = document.createElement('div');
+        originalContent.style.color = '#FFB74D';
+        originalContent.style.fontSize = '13px';
+        originalContent.style.lineHeight = '1.4';
+        originalContent.style.marginBottom = '6px';
+        originalContent.style.padding = '4px 6px';
+        originalContent.style.backgroundColor = 'rgba(255, 183, 77, 0.1)';
+        originalContent.style.borderRadius = '3px';
+        originalContent.style.fontStyle = 'italic';
+        originalContent.style.direction = 'ltr';
+        originalContent.textContent = `${matchingOriginal.text}`;
+        
+        subtitleItem.appendChild(originalContent);
+      }
+      
+      // Main translated text
     const textContent = document.createElement('div');
     textContent.style.color = 'white';
     textContent.style.fontSize = '14px';
     textContent.style.lineHeight = '1.4';
     textContent.textContent = subtitle.text;
     
-    subtitleItem.appendChild(timeInfo);
     subtitleItem.appendChild(textContent);
+    } else {
+      // If displaying only original subtitles, show them as main content
+      const textContent = document.createElement('div');
+      textContent.style.color = '#FFB74D';  // Use original color as main color
+      textContent.style.fontSize = '14px';
+      textContent.style.lineHeight = '1.4';
+      textContent.style.direction = 'ltr';
+      textContent.textContent = subtitle.text;
+      
+             subtitleItem.appendChild(textContent);
+     }
+    
     subtitlesContainer.appendChild(subtitleItem);
   });
   
@@ -3657,7 +4272,15 @@ function showSavedSubtitlesViewer() {
   modalContent.appendChild(header);
   modalContent.appendChild(refreshButton);
   modalContent.appendChild(clearButton);
+  
+  // Add clear original button only if it should be visible
+  if (hasOriginal && !hasTranslated) {
+    modalContent.appendChild(clearOriginalButton);
+  }
+  
+  modalContent.appendChild(downloadContainer);
   modalContent.appendChild(subtitlesContainer);
+  console.log('[DOWNLOAD] Added download container to modal');
   modalOverlay.appendChild(modalContent);
   
   // Add to page
@@ -3670,7 +4293,37 @@ function showSavedSubtitlesViewer() {
     }
   });
   
-  console.log(`[VIEWER] Displayed ${savedSubtitles.length} saved subtitles`);
+  console.log(`[VIEWER] Displayed ${subtitlesToDisplay.length} subtitles (translated: ${hasTranslated}, original: ${hasOriginal})`);
+}
+
+// Download subtitle file function
+function downloadSubtitleFile(content, filename) {
+  try {
+    // Create a blob with the subtitle content
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    
+    // Create a temporary URL for the blob
+    const url = URL.createObjectURL(blob);
+    
+    // Create a temporary anchor element for download
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = filename;
+    downloadLink.style.display = 'none';
+    
+    // Add to document, click, and remove
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    
+    // Clean up the temporary URL
+    URL.revokeObjectURL(url);
+    
+    console.log(`[DOWNLOAD] Successfully initiated download: ${filename}`);
+  } catch (error) {
+    console.error('[DOWNLOAD] Error downloading subtitle file:', error);
+    showNotification('خطا در دانلود فایل: ' + error.message);
+  }
 }
 
 // Force create settings box with body as container (fallback)
@@ -3781,10 +4434,9 @@ function forceCreateSettingsBox() {
   
   console.log('[FORCE] Force created settings box successfully');
   
-  // Add translate button
+  // Add translate button (without notification since we already showed one in init)
   setTimeout(() => {
     addTranslateButton();
-    showNotification('پنل تنظیمات اکستنشن ایجاد شد');
   }, 300);
   
   return content;
@@ -3792,39 +4444,79 @@ function forceCreateSettingsBox() {
 
 // Show notification function
 function showNotification(message) {
-  console.log('[NOTIFICATION]', message);
+  
+  // Create or get notification container
+  let notificationContainer = document.getElementById('youtube-translator-notifications');
+  if (!notificationContainer) {
+    notificationContainer = document.createElement('div');
+    notificationContainer.id = 'youtube-translator-notifications';
+    notificationContainer.style.cssText = `
+      position: fixed !important;
+      top: 20px !important;
+      right: 20px !important;
+      z-index: 2147483647 !important;
+      pointer-events: none !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 8px !important;
+      max-width: 320px !important;
+    `;
+    document.body.appendChild(notificationContainer);
+  }
   
   // Create notification element
   const notification = document.createElement('div');
-  notification.style.position = 'fixed';
-  notification.style.top = '20px';
-  notification.style.right = '20px';
-  notification.style.backgroundColor = 'rgba(140, 0, 0, 0.9)';
-  notification.style.color = 'white';
-  notification.style.padding = '10px 15px';
-  notification.style.borderRadius = '5px';
-  notification.style.zIndex = '2147483647';
-  notification.style.fontFamily = "'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif";
-  notification.style.fontSize = '14px';
-  notification.style.direction = 'rtl';
-  notification.style.maxWidth = '300px';
-  notification.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+  notification.style.cssText = `
+    background-color: rgba(30, 84, 0, 0.9) !important;
+    color: white !important;
+    padding: 10px 15px !important;
+    border-radius: 5px !important;
+    font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+    font-size: 14px !important;
+    direction: rtl !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+    pointer-events: auto !important;
+    opacity: 0 !important;
+    transform: translateX(100%) !important;
+    transition: all 0.3s ease !important;
+    word-wrap: break-word !important;
+    line-height: 1.4 !important;
+  `;
   notification.textContent = message;
   
-  // Add to page
-  document.body.appendChild(notification);
+  // Add to container
+  notificationContainer.appendChild(notification);
   
-  // Remove after 3 seconds
+  // Animate in
+  setTimeout(() => {
+    notification.style.opacity = '1';
+    notification.style.transform = 'translateX(0)';
+  }, 10);
+  
+  // Remove after 5 seconds
+  setTimeout(() => {
+    if (notification.parentNode) {
+      // Animate out
+      notification.style.opacity = '0';
+      notification.style.transform = 'translateX(100%)';
+      
   setTimeout(() => {
     if (notification.parentNode) {
       notification.parentNode.removeChild(notification);
+          
+          // Remove container if no notifications left
+          if (notificationContainer.children.length === 0) {
+            notificationContainer.remove();
     }
-  }, 3000);
+        }
+      }, 300);
+    }
+  }, 5000);
 }
 
 // Setup navigation observer function
 function setupNavigationObserver() {
-  console.log('[OBSERVER] Setting up navigation observer...');
+  console.log('👁️ [OBSERVER] Setting up navigation observer...');
   
   // Disconnect existing observer if any
   if (navigationObserver) {
@@ -3835,31 +4527,65 @@ function setupNavigationObserver() {
   navigationObserver = new MutationObserver((mutations) => {
     const currentUrl = window.location.href;
     
-    // Check if URL changed
-    if (currentUrl !== lastProcessedUrl) {
-      if (currentUrl.includes('youtube.com/watch')) {
-        console.log('[OBSERVER] URL changed, reinitializing...');
+    // Extract video IDs for comparison instead of full URLs
+    let currentVideoId = null;
+    let lastVideoId = null;
+    
+    try {
+      currentVideoId = new URLSearchParams(new URL(currentUrl).search).get('v');
+      lastVideoId = lastProcessedUrl ? new URLSearchParams(new URL(lastProcessedUrl).search).get('v') : null;
+    } catch (e) {
+      console.log('⚠️ [OBSERVER] Error parsing URLs:', e);
+      return;
+    }
+    
+    // Only log when video ID actually changes
+    if (currentVideoId !== lastVideoId) {
+      console.log('👁️ [OBSERVER] URL check - Current:', currentUrl);
+      console.log('👁️ [OBSERVER] Current video ID:', currentVideoId);
+      console.log('👁️ [OBSERVER] Last video ID:', lastVideoId);
+    }
+    
+    // Check if video ID actually changed (ignore URL parameter changes like &sttick=0)
+    const videoIdChanged = currentVideoId !== lastVideoId;
+    
+    if (videoIdChanged && currentUrl.includes('youtube.com/watch')) {
+      console.log('🔄 [OBSERVER] Video ID changed, reinitializing...');
+      console.log('🔄 [OBSERVER] From video ID:', lastVideoId);
+      console.log('🔄 [OBSERVER] To video ID:', currentVideoId);
         lastProcessedUrl = currentUrl;
         
         // Update current video ID
-        const newVideoId = new URLSearchParams(window.location.search).get('v');
-        if (newVideoId && newVideoId !== currentVideoId) {
-          currentVideoId = newVideoId;
-          console.log('[OBSERVER] Video ID changed to:', currentVideoId);
+      if (currentVideoId && currentVideoId !== globalThis.currentVideoId) {
+        globalThis.currentVideoId = currentVideoId;
+        console.log('🆔 [OBSERVER] Video ID updated to:', currentVideoId);
         }
         
         // Small delay to let YouTube load
         setTimeout(() => {
+        console.log('⏰ [OBSERVER] Timeout triggered - checking if should init');
+        console.log('⏰ [OBSERVER] isInitializing:', isInitializing);
+        if (!isInitializing) {
+          console.log('✅ [OBSERVER] Calling init()');
           init();
+        } else {
+          console.log('⚠️ [OBSERVER] Init already in progress, skipping');
+        }
         }, 1000);
-      } else if (lastProcessedUrl.includes('youtube.com/watch') && !currentUrl.includes('youtube.com/watch')) {
+    } else if (lastProcessedUrl && lastProcessedUrl.includes('youtube.com/watch') && !currentUrl.includes('youtube.com/watch')) {
         // User left YouTube video page completely
-        console.log('[EXIT] 🚪 User completely left YouTube video page');
-        console.log('[EXIT] From:', lastProcessedUrl);
-        console.log('[EXIT] To:', currentUrl);
+      console.log('🚪 [EXIT] User completely left YouTube video page');
+      console.log('🚪 [EXIT] From:', lastProcessedUrl);
+      console.log('🚪 [EXIT] To:', currentUrl);
         clearCurrentVideoData();
         lastProcessedUrl = currentUrl;
-      }
+    } else if (currentUrl === lastProcessedUrl) {
+      // Same URL, no change needed
+      console.log('👁️ [OBSERVER] Same URL, no action needed');
+    } else {
+      // URL changed but same video ID
+      console.log('👁️ [OBSERVER] URL changed but same video ID, updating lastProcessedUrl');
+      lastProcessedUrl = currentUrl;
     }
   });
   
@@ -4363,6 +5089,63 @@ function createApiKeyPanel() {
   // Set initial UI state
   updateProviderUI();
   
+  // Activation Code section
+  const activationSection = document.createElement('div');
+  activationSection.style.cssText = `
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(255, 107, 53, 0.1);
+    border: 1px solid rgba(255, 107, 53, 0.3);
+    border-radius: 6px;
+  `;
+  
+  const activationTitle = document.createElement('div');
+  activationTitle.textContent = 'کد فعالسازی رفع محدودیت';
+  activationTitle.style.cssText = `
+    color: #ff6b35;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-family: 'Vazirmatn', 'Tahoma', sans-serif;
+  `;
+  
+  const activationInput = document.createElement('input');
+  activationInput.type = 'text';
+  activationInput.placeholder = 'کد فعالسازی خود را وارد کنید...';
+  activationInput.value = localStorage.getItem('activation_code') || '';
+  activationInput.style.cssText = `
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #2a2a2a;
+    color: #fff;
+    font-size: 13px;
+    font-family: 'Vazirmatn', 'Tahoma', sans-serif;
+    direction: ltr;
+    text-align: left;
+    box-sizing: border-box;
+  `;
+  
+  const activationInfo = document.createElement('div');
+  activationInfo.innerHTML = '⚠️  در حالت رایگان به دلیل محدودیت های سرور در تولید زیرنویس اصلی، احتمال محدودیت در درخواست ها وجود دارد.<br/>برای رفع این محدودیت، کد فعالسازی را وارد کنید.';
+  activationInfo.style.cssText = `
+    font-size: 11px;
+    color: #ffcc00;
+    text-align: center;
+    line-height: 1.4;
+    margin-top: 8px;
+    font-family: 'Vazirmatn', 'Tahoma', sans-serif;
+    background: rgba(255, 204, 0, 0.1);
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 204, 0, 0.3);
+  `;
+  
+  activationSection.appendChild(activationTitle);
+  activationSection.appendChild(activationInput);
+  activationSection.appendChild(activationInfo);
+  
   // Buttons section
   const buttonsSection = document.createElement('div');
   buttonsSection.style.cssText = `
@@ -4445,6 +5228,7 @@ function createApiKeyPanel() {
     const selectedProvider = providerSelect.value;
     const apiToken = tokenInput.value.trim();
     const modelName = modelInput.value.trim();
+    const activationCode = activationInput.value.trim();
     
     if (!apiToken) {
       showNotification('⚠️ لطفاً API Token را وارد کنید');
@@ -4458,16 +5242,19 @@ function createApiKeyPanel() {
     // Save chunk duration setting
     localStorage.setItem('chunkDurationMinutes', currentChunkDuration.toString());
     
+    // Save activation code
+    localStorage.setItem('activation_code', activationCode);
+    
     if (selectedProvider === 'gemini') {
       localStorage.setItem('geminiApiKey', apiToken);
       localStorage.setItem('openrouter_model', 'gemini-2.0-flash');
-      showNotification('✅ تنظیمات Gemini و مدت زمان بخش‌ها ذخیره شد');
+      showNotification('✅ تنظیمات Gemini، کد فعالسازی و مدت زمان بخش‌ها ذخیره شد');
     } else {
       localStorage.setItem('openrouter_api_key', apiToken);
       if (modelName) {
         localStorage.setItem('openrouter_model', modelName);
       }
-      showNotification('✅ تنظیمات OpenRouter و مدت زمان بخش‌ها ذخیره شد');
+      showNotification('✅ تنظیمات OpenRouter، کد فعالسازی و مدت زمان بخش‌ها ذخیره شد');
     }
     
     hideApiKeyPanel();
@@ -4476,16 +5263,20 @@ function createApiKeyPanel() {
   resetButton.addEventListener('click', () => {
     const selectedProvider = providerSelect.value;
     
+    // Reset activation code
+    localStorage.removeItem('activation_code');
+    activationInput.value = '';
+    
     if (selectedProvider === 'gemini') {
       localStorage.removeItem('geminiApiKey');
       tokenInput.value = '';
-      showNotification('🔄 تنظیمات Gemini ریست شد');
+      showNotification('🔄 تنظیمات Gemini و کد فعالسازی ریست شد');
     } else {
       localStorage.removeItem('openrouter_api_key');
       localStorage.setItem('openrouter_model', 'deepseek/deepseek-chat-v3-0324:free');
       tokenInput.value = '';
       modelInput.value = 'deepseek/deepseek-chat-v3-0324:free';
-      showNotification('🔄 تنظیمات OpenRouter ریست شد');
+      showNotification('🔄 تنظیمات OpenRouter و کد فعالسازی ریست شد');
     }
   });
   
@@ -4499,6 +5290,12 @@ function createApiKeyPanel() {
   });
   
   modelInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      saveButton.click();
+    }
+  });
+  
+  activationInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       saveButton.click();
     }
@@ -4571,6 +5368,7 @@ function createApiKeyPanel() {
   content.appendChild(tokenSection);
   content.appendChild(modelSection);
   content.appendChild(chunkSection);
+  content.appendChild(activationSection);
   content.appendChild(buttonsSection);
   content.appendChild(versionSection);
   content.appendChild(contactSection);
@@ -4640,40 +5438,15 @@ function formatSecondsToTime(seconds) {
   }
 }
 
-// Start the extension when page loads
-console.log('[STARTUP] YouTube Subtitle Translator loading...');
-
-// Wait for page to be ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(init, 1000);
-  });
-} else {
-  // Page already loaded
-  setTimeout(init, 1000);
-}
-
-// Also try to activate when window loads
-window.addEventListener('load', () => {
-    setTimeout(() => {
-    const existingBox = document.getElementById('subtitle-settings-box');
-    if (!existingBox) {
-      console.log('[STARTUP] Window loaded but no settings box found, activating...');
-      activateSubtitleTranslator();
-    }
-  }, 2000);
-});
-
-console.log('[STARTUP] YouTube Subtitle Translator script loaded successfully');
-console.log('[STARTUP] If you don\'t see the settings panel, run: activateSubtitleTranslator()');
-
 // Dummy implementations for missing functions
 function addSyncControls() {
   console.log('[SYNC] Sync controls not implemented yet');
 }
 
 async function refreshSubtitles() {
-  console.log('[REFRESH] Refresh subtitles function called');
+  console.log('[REFRESH] ========== Refresh subtitles function called ==========');
+  console.log('[REFRESH] Current video ID:', currentVideoId);
+  console.log('[REFRESH] Translation in progress:', isTranslationInProgress);
   
   // Set translation in progress flag
   isTranslationInProgress = true;
@@ -4695,7 +5468,9 @@ async function refreshSubtitles() {
   
   // Check if we have existing translations
   const existingSubtitles = loadSubtitlesFromStorage(currentVideoId);
+  console.log('[REFRESH] Existing subtitles count:', existingSubtitles ? existingSubtitles.length : 0);
   if (!existingSubtitles || existingSubtitles.length === 0) {
+    console.log('[REFRESH] No existing subtitles found - starting full translation');
     showNotification('زیرنویس موجود یافت نشد - ترجمه کامل شروع می‌شود');
     translateSubtitlesWithOpenRouter();
     return;
@@ -4713,6 +5488,7 @@ async function refreshSubtitles() {
   
   // Check if translation is already complete
   if (coverage.endTime >= videoDuration - 30) { // 30 seconds tolerance
+    console.log('[REFRESH] Translation already complete - coverage.endTime:', coverage.endTime, 'videoDuration:', videoDuration);
     showNotification('ترجمه این ویدیو قبلاً تکمیل شده است');
     resetRefreshButton();
     return;
@@ -4741,6 +5517,9 @@ async function refreshSubtitles() {
   showNotification(`ادامه ترجمه از ${Math.floor(coverage.endTime / 60)}:${Math.floor(coverage.endTime % 60).toString().padStart(2, '0')}`);
   
   // Start translation from the end point
+  console.log('[REFRESH] About to call translateSubtitlesWithOpenRouter()');
+  console.log('[REFRESH] Translation start time set to:', localStorage.getItem('translationStartTime'));
+  console.log('[REFRESH] Translation end time set to:', localStorage.getItem('translationEndTime'));
   translateSubtitlesWithOpenRouter();
 }
 
@@ -4756,6 +5535,16 @@ function resetRefreshButton() {
     refreshButton.style.opacity = '1';
     refreshButton.style.cursor = 'pointer';
   }
+  
+  // Show status in progress bar instead of button area
+  const progress = calculateVideoTranslationProgress();
+  // Only show "بخشی از زیرنویس ترجمه شده است" when progress is less than 100%
+  const title = progress.percentage < 100 ? 'بخشی از زیرنویس ترجمه شده است' : 'ترجمه کامل';
+  updatePersistentProgressBar(
+    progress.percentage,
+    progress.status,
+    title
+  );
 }
 
 function filterSubtitlesByTimeRange(subtitles) {
@@ -4833,12 +5622,57 @@ function extractYouTubeSubtitles(videoId) {
   
   return new Promise(async (resolve, reject) => {
     try {
+      // Check if we already have cached original language subtitles
+      console.log('[EXTRACT] Checking for cached original language subtitles...');
+      const cachedSrtContent = getOriginalLanguageSubtitles(videoId);
+      
+      if (cachedSrtContent && cachedSrtContent.trim().length > 0) {
+        console.log('[EXTRACT] Found cached original language subtitles, using cache...');
+        console.log('[EXTRACT] Cached content length:', cachedSrtContent.length);
+        console.log('[EXTRACT] First 200 chars of cached content:', cachedSrtContent.substring(0, 200));
+        console.log('[EXTRACT] Last 200 chars of cached content:', cachedSrtContent.substring(Math.max(0, cachedSrtContent.length - 200)));
+        
+        const cachedSubtitles = parseSrtToSubtitles(cachedSrtContent);
+        console.log('[EXTRACT] parseSrtToSubtitles returned:', cachedSubtitles ? cachedSubtitles.length : 'null', 'subtitles');
+        
+        if (cachedSubtitles && cachedSubtitles.length > 0) {
+          console.log(`[EXTRACT] ✅ Cache Success: ${cachedSubtitles.length} subtitles from localStorage`);
+          
+          // Show notification
+          showNotification(`استفاده از زیرنویس ذخیره شده (${cachedSubtitles.length} زیرنویس)`);
+          
+          // Update status display if it exists
+          setTimeout(() => {
+            updateOriginalLanguageStatus();
+          }, 100);
+          
+          resolve(cachedSubtitles);
+          return;
+        } else {
+          console.log('[EXTRACT] Cached subtitles could not be parsed, will fetch fresh');
+        }
+      } else {
+        console.log('[EXTRACT] No cached subtitles found, will fetch fresh');
+      }
+      
       // Method 0: Try new .NET API first (SRT format)
       console.log('[EXTRACT] Method 0: Trying .NET API...');
       try {
+        // Get activation code from settings
+        const activationCode = getActivationCode();
+        
+        // Prepare headers
+        const headers = { 'Content-Type': 'text/plain' };
+        
+        // Add passkey header if activation code exists
+        if (activationCode) {
+          headers['friendKey'] = activationCode;
+          console.log('[EXTRACT] Added friendKey to request headers');
+        }
+        
         const response = await fetch('https://getsub.bot724.top/fetchCaption', {
           method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
+          headers: headers,
           body: `https://www.youtube.com/watch?v=${videoId}`
         });
         
@@ -4850,10 +5684,43 @@ function extractYouTubeSubtitles(videoId) {
             const apiSubtitles = parseSrtToSubtitles(srtContent);
             if (apiSubtitles && apiSubtitles.length > 0) {
               console.log(`[EXTRACT] ✅ API Success: ${apiSubtitles.length} subtitles`);
+              
+              // Show notification
+              showNotification(`دریافت زیرنویس جدید (${apiSubtitles.length} زیرنویس)`);
+              
+              // Save original language subtitles to localStorage
+              const originalLanguageKey = `originalLanguage_${videoId}`;
+              localStorage.setItem(originalLanguageKey, srtContent);
+              console.log('[EXTRACT] Saved original language subtitles to localStorage');
+              
+              // Update status display if it exists
+              setTimeout(() => {
+                updateOriginalLanguageStatus();
+                // Also update button text if needed
+                const translateButton = document.querySelector('.subtitle-translate-button');
+                if (translateButton && !translateButton.disabled) {
+                  translateButton.textContent = getTranslateButtonText();
+                }
+                // Refresh the entire button UI to show "Show Saved Subtitles" button
+                addTranslateButton();
+              }, 100);
+              
               resolve(apiSubtitles);
               return;
             }
           }
+        } else if (response.status === 404) {
+          // Handle 404 error specifically
+          console.log('[EXTRACT] API returned 404 - YouTube restrictions');
+          showNotification('به علت محدودیت های یوتوب در این لحظه استخراج زیرنویس امکانپذیر نبود. لطفا چند لحظه بعد دوباره امتحان کنید.');
+          reject(new Error('YouTube restrictions - 404'));
+          return;
+        } else if (response.status === 429) {
+          // Handle 429 error specifically (Too Many Requests)
+          console.log('[EXTRACT] API returned 429 - Rate limit exceeded');
+          showNotification('محدودیت تولید زیرنویس، ساعاتی دیگر دوباره تلاش کنید');
+          reject(new Error('Rate limit exceeded - 429'));
+          return;
         }
         console.log('[EXTRACT] API failed or returned empty content');
       } catch (apiError) {
@@ -5546,6 +6413,9 @@ async function translateWithOpenRouter(srt) {
       console.log('[TRANSLATE] Translated text length:', translatedText.length);
       console.log('[TRANSLATE] ========================================================');
       
+      // Enable saved subtitles button after successful OpenRouter response
+      enableSavedSubtitlesButton();
+      
       resolve(translatedText);
       
     } catch (error) {
@@ -5711,6 +6581,9 @@ function translateWithGemini(xml) {
       console.log(translatedText.substring(0, 500) + (translatedText.length > 500 ? '...' : ''));
       console.log('[TRANSLATE] ========================================================');
       
+      // Enable saved subtitles button after successful Gemini response
+      enableSavedSubtitlesButton();
+      
       resolve(translatedText);
       
     } catch (error) {
@@ -5852,18 +6725,21 @@ function createSubtitleOverlay() {
   previousSubtitle.className = 'subtitle-previous';
   previousSubtitle.id = 'subtitle-previous';
   previousSubtitle.style.display = 'none';
+  previousSubtitle.style.fontSize = `${Math.round(subtitleFontSize * 0.8)}px !important`;
   
   // Create current subtitle element
   const currentSubtitle = document.createElement('div');
   currentSubtitle.className = 'subtitle-text';
   currentSubtitle.id = 'subtitle-current';
   currentSubtitle.style.display = 'none';
+  currentSubtitle.style.fontSize = `${subtitleFontSize}px !important`;
   
   // Create next subtitle element
   const nextSubtitle = document.createElement('div');
   nextSubtitle.className = 'subtitle-next';
   nextSubtitle.id = 'subtitle-next';
   nextSubtitle.style.display = 'none';
+  nextSubtitle.style.fontSize = `${Math.round(subtitleFontSize * 0.8)}px !important`;
   
   // Add elements to context container
   contextContainer.appendChild(previousSubtitle);
@@ -5959,9 +6835,9 @@ function updateCurrentSubtitle() {
       currentElement.style.display = 'block';
     } else if (subtitleContext.upcoming) {
       // Show upcoming subtitle with prefix
-      currentElement.textContent = 'قریب: ' + subtitleContext.upcoming.text;
+      currentElement.textContent = '[بعدی] : ' + subtitleContext.upcoming.text;
       currentElement.style.display = 'block';
-      currentElement.style.opacity = '0.6';
+      // currentElement.style.opacity = '0.6';
     } else {
       currentElement.style.display = 'none';
       currentElement.style.opacity = '1';
@@ -6156,6 +7032,283 @@ function getChunkDurationMinutes() {
   return 5;
 }
 
+// Get activation code from settings
+function getActivationCode() {
+  const code = localStorage.getItem('activation_code');
+  return code ? code.trim() : null;
+}
+
+// Check if activation code exists and is valid
+function hasValidActivationCode() {
+  const code = getActivationCode();
+  return code && code.length > 0;
+}
+
+// Enable the saved subtitles button after first successful translation
+function enableSavedSubtitlesButton() {
+  try {
+    const savedSubtitlesButton = document.querySelector('.subtitle-show-saved-button');
+    if (savedSubtitlesButton) {
+      // Enable the button (remove any disabled state)
+      savedSubtitlesButton.disabled = false;
+      savedSubtitlesButton.style.opacity = '1';
+      savedSubtitlesButton.style.cursor = 'pointer';
+      
+      // Add a visual indicator that it's now available
+      savedSubtitlesButton.style.backgroundColor = '#4CAF50'; // Green color to indicate it's active
+      savedSubtitlesButton.style.transition = 'background-color 0.3s ease';
+      
+      // Reset to original color after a short time
+      setTimeout(() => {
+        savedSubtitlesButton.style.backgroundColor = '#2196F3'; // Back to original blue
+      }, 2000);
+      
+      console.log('[UI] Saved subtitles button enabled after first successful translation');
+    } else {
+      console.log('[UI] Saved subtitles button not found - will be enabled when created');
+    }
+  } catch (error) {
+    console.error('[UI] Error enabling saved subtitles button:', error);
+  }
+}
+
+function addSavedSubtitlesButtonIfNeeded() {
+  console.log('[UI_FORCE] ========== Forcing addition of saved subtitles button ==========');
+  console.log('[UI_FORCE] currentVideoId:', currentVideoId);
+  console.log('[UI_FORCE] isTranslationInProgress:', isTranslationInProgress);
+  
+  if (!currentVideoId) {
+    console.log('[UI_FORCE] ERROR: No video ID found');
+    return;
+  }
+  
+  // Check if we have saved subtitles
+  const savedSubtitles = loadSubtitlesFromStorage(currentVideoId);
+  console.log('[UI_FORCE] savedSubtitles found:', savedSubtitles ? savedSubtitles.length : 'null');
+  if (!savedSubtitles || savedSubtitles.length === 0) {
+    console.log('[UI_FORCE] ERROR: No saved subtitles found');
+    return;
+  }
+  
+  console.log('[UI_FORCE] ✅ Found', savedSubtitles.length, 'saved subtitles, proceeding to add display button');
+  
+  // Find the button container
+  const buttonContainer = document.querySelector('.subtitle-button-container');
+  console.log('[UI_FORCE] buttonContainer found:', !!buttonContainer);
+  if (!buttonContainer) {
+    console.log('[UI_FORCE] ERROR: Button container not found');
+    console.log('[UI_FORCE] Available containers:', document.querySelectorAll('[class*="container"]').length);
+    return;
+  }
+  
+  // Check all existing buttons
+  const allButtons = buttonContainer.querySelectorAll('button');
+  console.log('[UI_FORCE] Existing buttons count:', allButtons.length);
+  allButtons.forEach((btn, index) => {
+    console.log(`[UI_FORCE] Button ${index}: "${btn.textContent}" (class: ${btn.className})`);
+  });
+  
+  // Check if display button already exists
+  const existingDisplayButton = buttonContainer.querySelector('.subtitle-translate-button.green');
+  console.log('[UI_FORCE] existingDisplayButton found:', !!existingDisplayButton);
+  if (existingDisplayButton && existingDisplayButton.textContent.includes('نمایش زیرنویس فارسی')) {
+    console.log('[UI_FORCE] Display button already exists:', existingDisplayButton.textContent);
+    return;
+  }
+  
+  // Remove any existing translate buttons (except controls)
+  // Don't remove existing translate buttons - we want to keep "در حال ترجمه..." visible
+  // Only check if our display button already exists to avoid duplicates
+  console.log('[UI_FORCE] Checking for existing buttons without removing them');
+  
+  // Create the display button and add it at the top
+  console.log('[UI_FORCE] Creating new display button...');
+  const showButton = document.createElement('button');
+  showButton.textContent = 'نمایش زیرنویس فارسی (ذخیره شده)';
+  showButton.className = 'subtitle-translate-button green';
+  showButton.style.backgroundColor = '#4CAF50';
+  showButton.style.color = 'white';
+  showButton.style.border = 'none';
+  showButton.style.borderRadius = '4px';
+  showButton.style.padding = '8px 12px';
+  showButton.style.fontSize = '13px';
+  showButton.style.cursor = 'pointer';
+  showButton.style.width = '100%';
+  showButton.style.marginBottom = '6px';
+  
+  showButton.addEventListener('click', () => {
+    console.log('[UI_FORCE] Display button clicked');
+    // Load saved subtitles and display them
+    const cachedSubs = loadSubtitlesFromStorage(currentVideoId);
+    if (cachedSubs && cachedSubs.length > 0) {
+      translatedSubtitles = cachedSubs;
+      isSubtitleVisible = true;
+      toggleSubtitleDisplay(true);
+      console.log('[UI_FORCE] Subtitles displayed');
+    }
+  });
+  
+  // Insert at the beginning of the container
+  const firstChild = buttonContainer.firstChild;
+  console.log('[UI_FORCE] firstChild found:', !!firstChild);
+  if (firstChild) {
+    buttonContainer.insertBefore(showButton, firstChild);
+    console.log('[UI_FORCE] Button inserted before first child');
+  } else {
+    buttonContainer.appendChild(showButton);
+    console.log('[UI_FORCE] Button appended to container');
+  }
+  
+  // Verify button was added
+  const verifyButton = buttonContainer.querySelector('.subtitle-translate-button.green');
+  console.log('[UI_FORCE] ✅ Button verification - found:', !!verifyButton);
+  console.log('[UI_FORCE] ========== Successfully added saved subtitles display button ==========');
+}
+
+// Update UI when translation starts
+function updateUIForTranslationStart() {
+  try {
+    console.log('[UI] Updating UI for translation start');
+    
+    // Update persistent progress bar status
+    updatePersistentProgressBar(0, 'در حال دریافت ترجمه', 'در حال دریافت ترجمه');
+    
+    // Rebuild the button container to show correct buttons during translation
+    addTranslateButton();
+    
+    console.log('[UI] UI updated for translation start');
+  } catch (error) {
+    console.error('[UI] Error updating UI for translation start:', error);
+  }
+}
+
+// Update UI when translation ends
+function updateUIForTranslationEnd() {
+  try {
+    console.log('[UI] Updating UI for translation end');
+    
+    // Update persistent progress bar to show completion
+    const progress = calculateVideoTranslationProgress();
+    updatePersistentProgressBar(progress.percentage, progress.status, 'ترجمه کامل');
+    
+    // Update original language status as well
+    updateOriginalLanguageStatus();
+    
+    console.log('[UI] UI updated for translation end');
+  } catch (error) {
+    console.error('[UI] Error updating UI for translation end:', error);
+  }
+}
+
+// Get original language subtitles for current video
+function getOriginalLanguageSubtitles(videoId) {
+  try {
+    console.log('[DEBUG] getOriginalLanguageSubtitles called with videoId:', videoId);
+    
+    if (!videoId) {
+      videoId = currentVideoId || getCurrentVideoId();
+      console.log('[DEBUG] Using fallback videoId:', videoId);
+    }
+    
+    if (!videoId) {
+      console.log('[DEBUG] No videoId available');
+      return null;
+    }
+    
+    const originalLanguageKey = `originalLanguage_${videoId}`;
+    console.log('[DEBUG] Looking for key:', originalLanguageKey);
+    
+    const result = localStorage.getItem(originalLanguageKey);
+    console.log('[DEBUG] localStorage result:', result ? 'found' : 'not found');
+    
+    return result;
+  } catch (error) {
+    console.error('[DEBUG] Error in getOriginalLanguageSubtitles:', error);
+    return null;
+  }
+}
+
+// Check if original language subtitles exist for current video
+function hasOriginalLanguageSubtitles(videoId) {
+  try {
+    console.log('[DEBUG] hasOriginalLanguageSubtitles called with videoId:', videoId);
+    if (!videoId) {
+      console.log('[DEBUG] No videoId provided');
+      return false;
+    }
+    
+    const originalSubtitles = getOriginalLanguageSubtitles(videoId);
+    console.log('[DEBUG] originalSubtitles length:', originalSubtitles ? originalSubtitles.length : 'null');
+    
+    const result = originalSubtitles && originalSubtitles.trim().length > 0;
+    console.log('[DEBUG] hasOriginalLanguageSubtitles result:', result);
+    return result;
+  } catch (error) {
+    console.error('[DEBUG] Error in hasOriginalLanguageSubtitles:', error);
+    return false;
+  }
+}
+
+// Update original language status display
+function updateOriginalLanguageStatus() {
+  const statusValue = document.querySelector('.original-status-value');
+  if (statusValue) {
+    const currentVideoId = getCurrentVideoId();
+    
+    // Check translation progress first
+    const progress = calculateVideoTranslationProgress();
+    
+    if (progress.hasTranslation && progress.percentage < 100) {
+      // If we have partial translation (less than 100%)
+      statusValue.textContent = 'بخشی از ترجمه دریافت شده';
+      statusValue.style.color = '#FF9800'; // Orange color for partial
+    } else if (progress.hasTranslation && progress.percentage >= 100) {
+      // If we have complete translation (100%)
+      statusValue.textContent = 'ترجمه کامل دریافت شده';
+      statusValue.style.color = '#4CAF50'; // Green color for complete
+    } else if (hasOriginalLanguageSubtitles(currentVideoId)) {
+      // If we have original subtitles but no translation
+      statusValue.textContent = 'زیرنویس اصلی موجود است';
+      statusValue.style.color = '#4CAF50'; // Green color
+    } else {
+      // No subtitles at all
+      statusValue.textContent = 'زیرنویس دریافت نشده';
+      statusValue.style.color = '#ff6b6b'; // Red color
+    }
+  }
+}
+
+// Get appropriate translate button text based on original language status
+function getTranslateButtonText() {
+  try {
+    console.log('[DEBUG] getTranslateButtonText called');
+    const currentVideoId = getCurrentVideoId();
+    console.log('[DEBUG] currentVideoId:', currentVideoId);
+    
+    // Check translation progress to see if translation is complete
+    const progress = calculateVideoTranslationProgress();
+    console.log('[DEBUG] Translation progress:', progress);
+    
+    // If translation is not complete (less than 100%), always show "دریافت و ترجمه زیرنویس"
+    if (progress.percentage < 100) {
+      console.log('[DEBUG] Translation not complete - returning دریافت و ترجمه زیرنویس');
+      return 'دریافت و ترجمه زیرنویس';
+    }
+    
+    // If translation is complete (100%), check if we have original subtitles cached
+    if (currentVideoId && hasOriginalLanguageSubtitles(currentVideoId)) {
+      console.log('[DEBUG] Translation complete and has original subtitles - returning ترجمه زیرنویس');
+      return 'ترجمه زیرنویس';
+    } else {
+      console.log('[DEBUG] Translation complete but no original subtitles cached - returning دریافت و ترجمه زیرنویس');
+      return 'دریافت و ترجمه زیرنویس';
+    }
+  } catch (error) {
+    console.error('[DEBUG] Error in getTranslateButtonText:', error);
+    return 'دریافت و ترجمه زیرنویس'; // fallback
+  }
+}
+
 // Helper function to determine which API to use
 function getTranslationApiInfo() {
   const apiProvider = localStorage.getItem('api_provider') || 'openrouter';
@@ -6305,7 +7458,7 @@ function createOriginalLanguageControls() {
   // Create label
   const label = document.createElement('div');
   label.className = 'original-language-label';
-  label.textContent = 'نمایش زبان اصلی:';
+  label.textContent = 'زبان اصلی :';
   
   // Create checkbox
   const checkbox = document.createElement('input');
@@ -6489,6 +7642,12 @@ function moveOriginalSubtitleDown() {
 }
 
 function createOriginalPositionControls() {
+  try {
+    console.log('[DEBUG] createOriginalPositionControls called');
+    const container = document.createElement('div');
+    container.className = 'original-position-container';
+  
+  // Create position controls
   const controls = document.createElement('div');
   controls.className = 'original-position-controls';
   
@@ -6522,7 +7681,62 @@ function createOriginalPositionControls() {
   controls.appendChild(label);
   controls.appendChild(buttonsContainer);
   
-  return controls;
+  // Create status controls
+  const statusControls = document.createElement('div');
+  statusControls.className = 'original-status-controls';
+  
+  const statusLabel = document.createElement('div');
+  statusLabel.className = 'original-status-label';
+  statusLabel.textContent = 'وضعیت :';
+  
+  const statusValue = document.createElement('div');
+  statusValue.className = 'original-status-value';
+  
+  // Set initial status using the same logic as updateOriginalLanguageStatus
+  const currentVideoId = getCurrentVideoId();
+  console.log('[DEBUG] createOriginalPositionControls - checking status for videoId:', currentVideoId);
+  
+  // Check translation progress first
+  const progress = calculateVideoTranslationProgress();
+  
+  if (progress.hasTranslation && progress.percentage < 100) {
+    // If we have partial translation (less than 100%)
+    statusValue.textContent = 'بخشی از ترجمه دریافت شده';
+    statusValue.style.color = '#FF9800'; // Orange color for partial
+    console.log('[DEBUG] Status set to: بخشی از ترجمه دریافت شده');
+  } else if (progress.hasTranslation && progress.percentage >= 100) {
+    // If we have complete translation (100%)
+    statusValue.textContent = 'ترجمه کامل دریافت شده';
+    statusValue.style.color = '#4CAF50'; // Green color for complete
+    console.log('[DEBUG] Status set to: ترجمه کامل دریافت شده');
+  } else if (hasOriginalLanguageSubtitles(currentVideoId)) {
+    // If we have original subtitles but no translation
+    statusValue.textContent = 'زیرنویس اصلی موجود است';
+    statusValue.style.color = '#4CAF50'; // Green color
+    console.log('[DEBUG] Status set to: زیرنویس اصلی موجود است');
+  } else {
+    // No subtitles at all
+    statusValue.textContent = 'زیرنویس دریافت نشده';
+    statusValue.style.color = '#ff6b6b'; // Red color
+    console.log('[DEBUG] Status set to: زیرنویس دریافت نشده');
+  }
+  
+  statusControls.appendChild(statusLabel);
+  statusControls.appendChild(statusValue);
+  
+  // Add both controls to container
+  container.appendChild(controls);
+  container.appendChild(statusControls);
+  
+  console.log('[DEBUG] createOriginalPositionControls completed successfully');
+  return container;
+  } catch (error) {
+    console.error('[DEBUG] Error in createOriginalPositionControls:', error);
+    // Return a simple container as fallback
+    const fallbackContainer = document.createElement('div');
+    fallbackContainer.textContent = 'خطا در بارگذاری کنترل‌ها';
+    return fallbackContainer;
+  }
 }
 
 // Load subtitle position from localStorage
@@ -6580,6 +7794,7 @@ function moveSubtitleDown() {
 
 // Create subtitle position controls
 function createSubtitlePositionControls() {
+  console.log('[CONTROLS] Creating subtitle position controls...');
   // Load current position
   loadSubtitlePosition();
   
@@ -6624,6 +7839,159 @@ function createSubtitlePositionControls() {
   container.appendChild(label);
   container.appendChild(buttonsContainer);
   
+  console.log('[CONTROLS] Subtitle position controls created successfully');
+  return container;
+}
+
+// Subtitle font size management functions
+function loadSubtitleFontSize() {
+  try {
+    const savedSize = localStorage.getItem('subtitleFontSize');
+    if (savedSize !== null) {
+      const size = parseInt(savedSize);
+      if (!isNaN(size) && size >= 10 && size <= 40) {
+        subtitleFontSize = size;
+        console.log('Loaded subtitle font size:', subtitleFontSize);
+        return size;
+      } else {
+        console.log('Invalid saved font size, using default');
+        subtitleFontSize = 18;
+      }
+    } else {
+      subtitleFontSize = 18;
+    }
+  } catch (error) {
+    console.error('Error loading subtitle font size:', error);
+    subtitleFontSize = 18;
+  }
+  return 18;
+}
+
+function saveSubtitleFontSize(size) {
+  localStorage.setItem('subtitleFontSize', size.toString());
+  subtitleFontSize = size;
+}
+
+function updateSubtitleFontSize() {
+  console.log('[FONT] Updating subtitle font size to:', subtitleFontSize);
+  
+  // Update all subtitle text elements
+  const subtitleCurrent = document.getElementById('subtitle-current');
+  const subtitlePrevious = document.getElementById('subtitle-previous');
+  const subtitleNext = document.getElementById('subtitle-next');
+  
+  if (subtitleCurrent) {
+    subtitleCurrent.style.setProperty('font-size', `${subtitleFontSize}px`, 'important');
+    console.log('[FONT] Updated current subtitle font size');
+  } else {
+    console.log('[FONT] Current subtitle element not found');
+  }
+  
+  if (subtitlePrevious) {
+    subtitlePrevious.style.setProperty('font-size', `${Math.round(subtitleFontSize * 0.8)}px`, 'important');
+    console.log('[FONT] Updated previous subtitle font size');
+  }
+  
+  if (subtitleNext) {
+    subtitleNext.style.setProperty('font-size', `${Math.round(subtitleFontSize * 0.8)}px`, 'important');
+    console.log('[FONT] Updated next subtitle font size');
+  }
+  
+  // Update font size display in control panel
+  const fontSizeValue = document.querySelector('.subtitle-font-size-value');
+  if (fontSizeValue) {
+    fontSizeValue.textContent = `${subtitleFontSize}px`;
+    console.log('[FONT] Updated display value');
+  } else {
+    console.log('[FONT] Font size display element not found');
+  }
+  
+  // Also update the overlay style (fallback)
+  const overlay = document.querySelector('.subtitle-overlay');
+  if (overlay) {
+    overlay.style.fontSize = `${subtitleFontSize}px`;
+    console.log('[FONT] Updated overlay font size');
+  } else {
+    console.log('[FONT] Subtitle overlay not found');
+  }
+}
+
+function increaseSubtitleFontSize() {
+  console.log('[FONT] Increase button clicked, current size:', subtitleFontSize);
+  if (subtitleFontSize < 40) {
+    subtitleFontSize += 2;
+    console.log('[FONT] New size:', subtitleFontSize);
+    saveSubtitleFontSize(subtitleFontSize);
+    updateSubtitleFontSize();
+    showNotification(`اندازه فونت: ${subtitleFontSize}px`);
+  } else {
+    console.log('[FONT] Cannot increase - already at maximum size');
+    showNotification('حداکثر اندازه فونت رسیده‌اید');
+  }
+}
+
+function decreaseSubtitleFontSize() {
+  console.log('[FONT] Decrease button clicked, current size:', subtitleFontSize);
+  if (subtitleFontSize > 10) {
+    subtitleFontSize -= 2;
+    console.log('[FONT] New size:', subtitleFontSize);
+    saveSubtitleFontSize(subtitleFontSize);
+    updateSubtitleFontSize();
+    showNotification(`اندازه فونت: ${subtitleFontSize}px`);
+  } else {
+    console.log('[FONT] Cannot decrease - already at minimum size');
+    showNotification('حداقل اندازه فونت رسیده‌اید');
+  }
+}
+
+// Create subtitle font size controls
+function createSubtitleFontSizeControls() {
+  console.log('[CONTROLS] Creating subtitle font size controls...');
+  // Load current font size
+  loadSubtitleFontSize();
+  
+  // Create container
+  const container = document.createElement('div');
+  container.className = 'subtitle-position-controls'; // Reuse same styling
+  
+  // Create label
+  const label = document.createElement('div');
+  label.className = 'subtitle-position-label';
+  label.textContent = 'اندازه زیرنویس:';
+  
+  // Create buttons container
+  const buttonsContainer = document.createElement('div');
+  buttonsContainer.className = 'subtitle-position-buttons';
+  
+  // Create increase button
+  const increaseButton = document.createElement('button');
+  increaseButton.className = 'subtitle-position-button';
+  increaseButton.textContent = '+';
+  increaseButton.title = 'بزرگ کردن فونت';
+  increaseButton.addEventListener('click', increaseSubtitleFontSize);
+  
+  // Create font size display
+  const fontSizeValue = document.createElement('div');
+  fontSizeValue.className = 'subtitle-font-size-value subtitle-position-value'; // Reuse styling
+  fontSizeValue.textContent = `${subtitleFontSize}px`;
+  
+  // Create decrease button
+  const decreaseButton = document.createElement('button');
+  decreaseButton.className = 'subtitle-position-button';
+  decreaseButton.textContent = '-';
+  decreaseButton.title = 'کوچک کردن فونت';
+  decreaseButton.addEventListener('click', decreaseSubtitleFontSize);
+  
+  // Assemble buttons
+  buttonsContainer.appendChild(increaseButton);
+  buttonsContainer.appendChild(fontSizeValue);
+  buttonsContainer.appendChild(decreaseButton);
+  
+  // Assemble container
+  container.appendChild(label);
+  container.appendChild(buttonsContainer);
+  
+  console.log('[CONTROLS] Subtitle font size controls created successfully');
   return container;
 }
 
@@ -6677,9 +8045,18 @@ setTimeout(() => {
 };
 
 // Initialize when page loads
+console.log('🌟 [STARTUP] Script loaded - document.readyState:', document.readyState);
+console.log('🌟 [STARTUP] Current URL:', window.location.href);
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  console.log('⏳ [STARTUP] Document still loading, adding DOMContentLoaded listener');
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('📄 [STARTUP] DOMContentLoaded fired, calling init');
+    init();
+  });
 } else {
+  console.log('✅ [STARTUP] Document already loaded, calling init immediately');
+  // Page already loaded, init immediately
     init();
   }
 
@@ -6957,7 +8334,7 @@ function createPreviousNextSubtitlesControls() {
   // Create label
   const label = document.createElement('div');
   label.className = 'original-language-label';
-  label.textContent = 'نمایش زیرنویس قبل و بعد:';
+  label.textContent = 'قبل و بعد :';
   
   // Create checkbox
   const checkbox = document.createElement('input');
@@ -6991,19 +8368,29 @@ function parseSrtToSubtitles(srtContent) {
   }
 
   try {
+    console.log('[PARSE] SRT content length:', srtContent.length);
+    console.log('[PARSE] First 300 chars:', srtContent.substring(0, 300));
+    
     const subtitles = [];
     const blocks = srtContent.trim().split(/\n\s*\n/);
+    console.log('[PARSE] Split into', blocks.length, 'blocks');
     
     for (const block of blocks) {
       const lines = block.trim().split('\n');
-      if (lines.length < 3) continue;
+      if (lines.length < 3) {
+        console.log('[PARSE] Skipping block with less than 3 lines:', lines.length, 'lines');
+        continue;
+      }
       
       // Line 1: Subtitle index (ignore)
       // Line 2: Time range
       // Line 3+: Subtitle text
       
       const timeMatch = lines[1].match(/(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})/);
-      if (!timeMatch) continue;
+      if (!timeMatch) {
+        console.log('[PARSE] No time match found in line:', lines[1]);
+        continue;
+      }
       
       const startTime = srtTimeStringToSeconds(timeMatch[1]);
       const endTime = srtTimeStringToSeconds(timeMatch[2]);
