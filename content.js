@@ -23,8 +23,6 @@ let isInitializing = false; // Flag to prevent multiple simultaneous initializat
 
 // Manual activation function for debugging
 function activateSubtitleTranslator() {
-  console.log('🔧 [MANUAL] Function called - Stack trace:', new Error().stack);
-  console.log('🔧 [MANUAL] Manually activating subtitle translator...');
   
   // Force remove any existing elements
   removeSettingsBox();
@@ -36,7 +34,7 @@ function activateSubtitleTranslator() {
   
   // Get current video ID
   currentVideoId = new URLSearchParams(window.location.search).get('v');
-  console.log('[MANUAL] Current video ID:', currentVideoId);
+  // Video ID set
   
   // Create styles
   createStyles();
@@ -45,12 +43,11 @@ function activateSubtitleTranslator() {
   const content = forceCreateSettingsBox();
   
   if (content) {
-    console.log('✅ [MANUAL] Manual activation successful');
-    console.log('📢 [MANUAL] About to show success notification');
+          // Manual activation successful
     showNotification('اکستنشن به صورت دستی فعال شد');
   } else {
     console.error('❌ [MANUAL] Manual activation failed');
-    console.log('📢 [MANUAL] About to show error notification');
+          // Error in manual activation
     showNotification('خطا در فعال‌سازی دستی اکستنشن');
   }
 }
@@ -62,24 +59,19 @@ window.activateSubtitleTranslator = activateSubtitleTranslator;
 function init() {
   // Prevent multiple simultaneous initialization
   if (isInitializing) {
-    console.log('⚠️ [INIT] Already initializing, skipping duplicate call');
     return;
   }
   
   isInitializing = true;
-  console.log('✅ [INIT] Starting initialization');
   
   // Clean up localStorage first
   cleanupLocalStorage();
   
-  // Check if we're on a YouTube video page
+    // Check if we're on a YouTube video page
   if (!window.location.href.includes('youtube.com/watch')) {
-    console.log('[INIT] Not on a YouTube video page, exiting init');
     isInitializing = false;
     return;
   }
-
-  console.log('[INIT] YouTube video page detected, setting up translator...');
   
   // Get the current video ID
   const videoId = new URLSearchParams(window.location.search).get('v');
@@ -91,14 +83,11 @@ function init() {
   
   // Clear previous video's subtitles if video ID changed
   if (currentVideoId && currentVideoId !== videoId) {
-    console.log(`[EXIT] 🚪 Exiting video ${currentVideoId} and switching to ${videoId}`);
-    console.log(`[INIT] Video changed from ${currentVideoId} to ${videoId}, clearing previous subtitles`);
     clearCurrentVideoData();
   }
 
   currentVideoId = videoId;
   lastProcessedUrl = window.location.href;
-  console.log('[INIT] Current video ID set to:', currentVideoId);
 
   // Check if this video has saved subtitles in localStorage
   const savedSubtitles = loadSubtitlesFromStorage(videoId);
@@ -120,6 +109,7 @@ function init() {
   // Load saved settings
   loadSubtitlePosition();
   loadSubtitleFontSize();
+  loadSubtitleTimeOffset();
   loadOriginalSubtitlePosition();
   loadOriginalLanguageSetting();
   loadPreviousNextSubtitlesSetting();
@@ -1931,6 +1921,12 @@ function addTranslateButton() {
     }
   }
   
+  // Add subtitle time synchronization controls (always visible)
+  console.log('[UI] Creating subtitle time sync controls...');
+  const timeSyncControls = createSubtitleTimeSyncControls();
+  console.log('[UI] Time sync controls created:', timeSyncControls ? 'SUCCESS' : 'FAILED');
+  buttonContainer.appendChild(timeSyncControls);
+
   // Add subtitle position controls at the end (always visible)
   console.log('[UI] Creating subtitle position controls...');
   const positionControls = createSubtitlePositionControls();
@@ -2453,7 +2449,7 @@ async function translateSubtitlesWithOpenRouter() {
         } else if (addedCount > 0) {
           showNotification(`${addedCount} زیرنویس جدید به ${filteredExistingSubtitles.length} زیرنویس قبلی اضافه شد`);
         } else {
-          showNotification('همه زیرنویس‌ها از قبل موجود بودند');
+          //showNotification('همه زیرنویس‌ها از قبل موجود بودند');
         }
       } else {
         console.log(`[TRANSLATE] No existing subtitles found, saving all ${parsedSubtitles.length} as new`);
@@ -6835,7 +6831,7 @@ function updateCurrentSubtitle() {
       currentElement.style.display = 'block';
     } else if (subtitleContext.upcoming) {
       // Show upcoming subtitle with prefix
-      currentElement.textContent = '[بعدی] : ' + subtitleContext.upcoming.text;
+      currentElement.textContent = subtitleContext.upcoming.text;
       currentElement.style.display = 'block';
       // currentElement.style.opacity = '0.6';
     } else {
@@ -6917,10 +6913,13 @@ function findUpcomingSubtitle(currentTime) {
     return null;
   }
   
+  // Apply time offset
+  const adjustedTime = currentTime + subtitleTimeOffset;
+  
   // Find the next subtitle that will start after current time
   for (let i = 0; i < translatedSubtitles.length; i++) {
     const subtitle = translatedSubtitles[i];
-    if (subtitle.startTime > currentTime) {
+    if (subtitle.startTime > adjustedTime) {
       return subtitle;
     }
   }
@@ -7843,6 +7842,129 @@ function createSubtitlePositionControls() {
   return container;
 }
 
+// Subtitle time offset management functions
+function loadSubtitleTimeOffset() {
+  try {
+    const savedOffset = localStorage.getItem('subtitleTimeOffset');
+    if (savedOffset !== null) {
+      const offset = parseFloat(savedOffset);
+      if (!isNaN(offset) && offset >= -30 && offset <= 30) {
+        subtitleTimeOffset = offset;
+        return offset;
+      } else {
+        subtitleTimeOffset = 0;
+      }
+    } else {
+      subtitleTimeOffset = 0;
+    }
+  } catch (error) {
+    console.error('Error loading subtitle time offset:', error);
+    subtitleTimeOffset = 0;
+  }
+  return 0;
+}
+
+function saveSubtitleTimeOffset(offset) {
+  localStorage.setItem('subtitleTimeOffset', offset.toString());
+  subtitleTimeOffset = offset;
+}
+
+function increaseSubtitleTimeOffset() {
+  if (subtitleTimeOffset < 30) {
+    subtitleTimeOffset += 0.5;
+    saveSubtitleTimeOffset(subtitleTimeOffset);
+    updateSubtitleTimeOffsetDisplay();
+    showNotification(`هماهنگی زمان: +${subtitleTimeOffset.toFixed(1)}s`);
+  } else {
+    showNotification('حداکثر تأخیر زمانی رسیده‌اید');
+  }
+}
+
+function decreaseSubtitleTimeOffset() {
+  if (subtitleTimeOffset > -30) {
+    subtitleTimeOffset -= 0.5;
+    saveSubtitleTimeOffset(subtitleTimeOffset);
+    updateSubtitleTimeOffsetDisplay();
+    showNotification(`هماهنگی زمان: ${subtitleTimeOffset.toFixed(1)}s`);
+  } else {
+    showNotification('حداقل تأخیر زمانی رسیده‌اید');
+  }
+}
+
+function resetSubtitleTimeOffset() {
+  subtitleTimeOffset = 0;
+  saveSubtitleTimeOffset(subtitleTimeOffset);
+  updateSubtitleTimeOffsetDisplay();
+  showNotification('هماهنگی زمان بازنشانی شد');
+}
+
+function updateSubtitleTimeOffsetDisplay() {
+  const offsetValue = document.querySelector('.subtitle-time-offset-value');
+  if (offsetValue) {
+    const sign = subtitleTimeOffset >= 0 ? '+' : '';
+    offsetValue.textContent = `${sign}${subtitleTimeOffset.toFixed(1)}s`;
+  }
+}
+
+// Create subtitle time synchronization controls
+function createSubtitleTimeSyncControls() {
+  // Load current time offset
+  loadSubtitleTimeOffset();
+  
+  // Create container
+  const container = document.createElement('div');
+  container.className = 'subtitle-position-controls'; // Reuse same styling
+  
+  // Create label
+  const label = document.createElement('div');
+  label.className = 'subtitle-position-label';
+  label.textContent = 'هماهنگی زمان:';
+  
+  // Create buttons container
+  const buttonsContainer = document.createElement('div');
+  buttonsContainer.className = 'subtitle-position-buttons';
+  
+  // Create forward button (increase delay)
+  const forwardButton = document.createElement('button');
+  forwardButton.className = 'subtitle-position-button';
+  forwardButton.textContent = '+';
+  forwardButton.title = 'تأخیر زیرنویس (+0.5 ثانیه)';
+  forwardButton.addEventListener('click', increaseSubtitleTimeOffset);
+  
+  // Create time offset display
+  const offsetValue = document.createElement('div');
+  offsetValue.className = 'subtitle-time-offset-value subtitle-position-value'; // Reuse styling
+  const sign = subtitleTimeOffset >= 0 ? '+' : '';
+  offsetValue.textContent = `${sign}${subtitleTimeOffset.toFixed(1)}s`;
+  
+  // Create backward button (decrease delay)
+  const backwardButton = document.createElement('button');
+  backwardButton.className = 'subtitle-position-button';
+  backwardButton.textContent = '-';
+  backwardButton.title = 'تقدیم زیرنویس (-0.5 ثانیه)';
+  backwardButton.addEventListener('click', decreaseSubtitleTimeOffset);
+  
+  // Create reset button
+  const resetButton = document.createElement('button');
+  resetButton.className = 'subtitle-position-button';
+  resetButton.textContent = '0';
+  resetButton.title = 'بازنشانی هماهنگی زمان';
+  resetButton.style.minWidth = '30px';
+  resetButton.addEventListener('click', resetSubtitleTimeOffset);
+  
+  // Assemble buttons
+  buttonsContainer.appendChild(backwardButton);
+  buttonsContainer.appendChild(offsetValue);
+  buttonsContainer.appendChild(forwardButton);
+  buttonsContainer.appendChild(resetButton);
+  
+  // Assemble container
+  container.appendChild(label);
+  container.appendChild(buttonsContainer);
+  
+  return container;
+}
+
 // Subtitle font size management functions
 function loadSubtitleFontSize() {
   try {
@@ -8315,12 +8437,12 @@ function togglePreviousNextSubtitles() {
       if (nextElement.textContent) {
         nextElement.style.display = 'block';
       }
-      showNotification('نمایش زیرنویس‌های قبل و بعد فعال شد');
+      showNotification('نمایش زیرنویس‌های قبل فعال شد');
 } else {
       // Hide elements
       previousElement.style.display = 'none';
       nextElement.style.display = 'none';
-      showNotification('نمایش زیرنویس‌های قبل و بعد غیرفعال شد');
+      showNotification('نمایش زیرنویس‌های قبل غیرفعال شد');
     }
   }
 }
@@ -8334,7 +8456,7 @@ function createPreviousNextSubtitlesControls() {
   // Create label
   const label = document.createElement('div');
   label.className = 'original-language-label';
-  label.textContent = 'قبل و بعد :';
+  label.textContent = 'بخش قبلی';
   
   // Create checkbox
   const checkbox = document.createElement('input');
@@ -8349,7 +8471,7 @@ function createPreviousNextSubtitlesControls() {
   checkbox.addEventListener('change', togglePreviousNextSubtitles);
   
   // Add title for clarity
-  checkbox.title = 'فعال/غیرفعال کردن نمایش زیرنویس‌های قبل و بعد از زیرنویس اصلی';
+  checkbox.title = 'فعال/غیرفعال کردن نمایش زیرنویس‌های قبل از زیرنویس اصلی';
   
   // Assemble container
   container.appendChild(label);
