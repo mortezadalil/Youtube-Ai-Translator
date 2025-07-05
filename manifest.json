@@ -19,7 +19,13 @@
   "content_scripts": [
     {
       "matches": ["https://*.youtube.com/*"],
-      "js": ["content.js"]
+      "js": [
+        "core_and_ui.js",
+        "buttons_and_progress.js",
+        "data_and_controls.js",
+        "subtitle_engine.js",
+        "settings_and_utils.js"
+      ]
     }
   ],
   "action": {
